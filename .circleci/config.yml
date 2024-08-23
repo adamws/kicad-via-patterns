@@ -1,0 +1,204 @@
+version: 2.1
+
+jobs:
+  test-linux:
+    parameters:
+      version:
+        type: string
+    docker:
+      - image: admwscki/kicad-kbplacer-primary:<<parameters.version>>
+    steps: &in-docker-test-steps
+      - checkout
+      - run:
+          name: Prepare tests
+          command: |
+            pip3 install --no-cache-dir -r dev-requirements.txt
+      - run:
+          name: Run tests
+          command: |
+            pytest --junitxml=test-results/pytest/results.xml tests/
+      - run:
+          name: Move coverage file
+          command: |
+            mv .coverage .coverage-<<parameters.version>>
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .coverage-<<parameters.version>>
+      - store_artifacts:
+          path: report.html
+      - store_test_results:
+          path: test-results
+  collect-coverage:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            python -m pip install coverage
+      - run:
+          name: Generate coverage report
+          command: |
+            python -m coverage combine /tmp/workspace/.coverage-*
+            python -m coverage report
+            python -m coverage html
+# enable when repository switched to public
+#      - when: # run only on master
+#          condition:
+#            equal: [ master, << pipeline.git.branch >> ]
+#          steps:
+#            - run:
+#                name: Publish coverage
+#                command: |
+#                  python -m pip install coveralls
+#                  python -m coveralls
+      - store_artifacts:
+          path: .coverage
+      - store_artifacts:
+          path: htmlcov
+  test-windows:
+    machine:
+      image: windows-server-2022-gui:edge
+      shell: powershell.exe -ExecutionPolicy Bypass
+    resource_class: windows.medium
+    parameters:
+      kicad-version:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Install scoop and KiCad
+          command: |
+            irm get.scoop.sh -outfile "install.ps1"
+            .\install.ps1 -RunAsAdmin -ScoopDir "C:\scoop"
+            scoop bucket add extras
+            scoop install kicad@<<parameters.kicad-version>>
+            scoop cache rm --all
+      - run:
+          name: Install dependencies
+          command: |
+            .\.circleci\scripts\use-kicad-python.ps1
+            python -m pip install --upgrade pip
+            pip install --no-cache-dir -r dev-requirements.txt
+      - run:
+          name: Run tests
+          command: |
+            .\.circleci\scripts\use-kicad-python.ps1
+            pytest --junitxml=test-results/pytest/results.xml tests
+      - store_artifacts:
+          path: report.html
+      - store_test_results:
+          path: test-results
+  create-pcm-package:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run:
+          name: Setup environment variables
+          command: |
+            if [ -z "$CIRCLE_TAG" ]; then
+              echo "Building development package"
+            else
+              echo "Building release package"
+              echo "export VIA_PATTERNS_KICAD_STATUS=stable" >> $BASH_ENV
+              echo "export VIA_PATTERNS_KICAD_RELEASE_URL=https://github.com/adamws/kicad-via-patterns/releases/download/v{version}/{zip_name}" >> $BASH_ENV
+            fi
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update && sudo apt-get install -y gettext
+            python -m pip install --upgrade hatch
+      - run:
+          name: Create zip package and repository
+          environment:
+            HATCH_BUILD_HOOK_ENABLE_KICAD-REPOSITORY: true
+          command: |
+            python -m hatch build --target kicad-package
+      - store_artifacts:
+          path: dist/repository
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist/repository/*
+      - when: # run only on master
+          condition:
+            equal: [ master, << pipeline.git.branch >> ]
+          steps:
+            - add_ssh_keys:
+                fingerprints:
+                  - "SHA256:TZciGCvnHAunbSU6mANR6aO6L1MnUEqQPpK5Co2t1QM"
+            - run:
+                name: Deploy repository to github pages
+                command: |
+                  ./release/deploy.sh
+  create-github-release:
+    docker:
+      - image: cimg/base:2023.12
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            ./release/install_gh.sh
+      - run:
+          name: Create draft release
+          command: |
+            if [ -z "$CIRCLE_TAG" ]; then exit 1; fi
+            gh config set prompt disabled
+            gh release create $CIRCLE_TAG --prerelease --verify-tag --title $CIRCLE_TAG
+      - run:
+          name: Upload artifacts to release
+          command: |
+            NAME=via-patterns-$(echo $CIRCLE_TAG | cut -c 2-)
+            gh release upload $CIRCLE_TAG \
+              /tmp/dist/$NAME.tar.gz \
+              /tmp/dist/repository/$NAME.zip \
+              /tmp/dist/repository/packages.json \
+              /tmp/dist/repository/repository.json \
+              /tmp/dist/repository/resources.zip
+
+workflows:
+  main:
+    jobs:
+      - test-linux:
+          matrix:
+            parameters:
+              version:
+                - 7.0.6-focal
+                - 7.0.6-lunar
+                - 7.0.11-focal
+                - 7.0.11-mantic
+                - 8.0.4-focal
+                - 8.0.4-jammy
+      - collect-coverage:
+          requires:
+            - test-linux
+      - test-windows:
+          matrix:
+            parameters:
+              kicad-version:
+                - 7.0.11
+                - 8.0.4
+      - create-pcm-package:
+          requires: &required-tests
+            - test-linux
+            - test-windows
+  kicad-release:
+    jobs:
+      - create-pcm-package:
+          filters: &tag-filter
+            tags:
+              only: /^v[0-9]+(\.[0-9]+)*$/
+            branches:
+              ignore: /.*/
+      - create-github-release:
+          filters: *tag-filter
+          requires:
+            - create-pcm-package
