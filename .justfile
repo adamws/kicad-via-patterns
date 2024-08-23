@@ -11,3 +11,6 @@ test-all:
 
 refresh-version:
   hatch build --hooks-only
+
+main-dialog:
+  python -m via_patterns.dialog

@@ -1,4 +1,4 @@
-from ._version import __version__
+from via_patterns._version import __version__
 
 try:
     import pcbnew

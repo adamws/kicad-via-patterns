@@ -1,5 +1,5 @@
 __pycache__/
-source/_version.py
+via_patterns/_version.py
 dist/
 *.egg-info/
 

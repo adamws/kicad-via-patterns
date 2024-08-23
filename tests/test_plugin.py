@@ -14,6 +14,6 @@ def test_if_plugin_loads() -> None:
     logger.info(f"Plugin executed with python version: {sys.version!r}")
 
     dirname = Path(os.path.realpath(__file__)).parents[1]
-    pcbnew.LoadPluginModule(dirname, "source", "")
+    pcbnew.LoadPluginModule(dirname, "via_patterns", "")
     not_loaded = pcbnew.GetUnLoadableWizards()
     assert not_loaded == "", pcbnew.GetWizardsBackTrace()
