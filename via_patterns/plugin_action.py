@@ -23,7 +23,7 @@ class PluginAction(pcbnew.ActionPlugin):
 
     def Initialize(self) -> None:
         version = pcbnew.Version()
-        if int(version.split(".")[0]) < 8:
+        if int(version.split(".")[0]) < 7:
             msg = f"KiCad version {version} is not supported"
             raise Exception(msg)
 
