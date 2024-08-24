@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 import string
+from typing import List
 
 import wx
+
+from .via_patterns import Pattern
 
 TEXT_CTRL_EXTRA_SPACE = 25
 
@@ -91,17 +94,24 @@ class LabeledTextCtrl(wx.Panel):
 
         self.SetSizer(sizer)
 
-    def Enable(self) -> None:
-        self.label.Enable()
-        self.text.Enable()
 
-    def Disable(self) -> None:
-        self.label.Disable()
-        self.text.Disable()
+class LabeledDropdownCtrl(wx.Panel):
+    def __init__(
+        self,
+        parent: wx.Window,
+        label: str,
+        choices: List[str] = [],
+    ) -> None:
+        super().__init__(parent)
 
-    def Hide(self) -> None:
-        self.label.Hide()
-        self.text.Hide()
+        self.label = wx.StaticText(self, -1, label)
+        self.dropdown = wx.ComboBox(self, choices=choices, style=wx.CB_DROPDOWN)
+        self.dropdown.SetValue(choices[0])
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(self.label, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
+        sizer.Add(self.dropdown, 0, wx.EXPAND | wx.TOP | wx.BOTTOM, 5)
+        self.SetSizer(sizer)
 
 
 class MainDialog(wx.Dialog):
@@ -117,27 +127,36 @@ class MainDialog(wx.Dialog):
         self.SetSizerAndFit(box)
 
     def get_main_section(self) -> wx.Sizer:
-        count = LabeledTextCtrl(
+        choices = [Pattern.PERPENDICULAR.value, Pattern.DIAGONAL.value]
+        pattern_ctrl = LabeledDropdownCtrl(self, "Type:", choices)
+
+        size_ctrl = LabeledTextCtrl(
             self,
-            "Number of vias:",
+            "Size:",
             value=str(5),
             width=5,
             validator=IntValidator(),
         )
 
-        box = wx.StaticBox(self, label="Settings")
+        box = wx.StaticBox(self, label="Pattern settings")
         sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
 
         row1 = wx.BoxSizer(wx.HORIZONTAL)
-        row1.Add(count, 0, wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
+        row1.Add(pattern_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+        row1.Add(size_ctrl, 0, wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
+
         sizer.Add(row1, 0, wx.EXPAND | wx.ALL, 5)
 
-        self.__number_of_vias = count.text
+        self.__number_of_vias = size_ctrl.text
+        self.__pattern_type = pattern_ctrl.dropdown
 
         return sizer
 
     def get_number_of_vias(self) -> int:
         return int(self.__number_of_vias.GetValue())
+
+    def get_pattern_type(self) -> Pattern:
+        return Pattern(self.__pattern_type.GetValue())
 
 
 # used for tests
@@ -165,5 +184,7 @@ if __name__ == "__main__":
         app.MainLoop()
     else:
         dlg.ShowModal()
+        print(f"number of vias: {dlg.get_number_of_vias()}")
+        print(f"pattern: {dlg.get_pattern_type()}")
 
     print("exit ok")

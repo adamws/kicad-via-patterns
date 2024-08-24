@@ -1,10 +1,11 @@
 import logging
+import math
 from contextlib import contextmanager
 
 import pcbnew
 import pytest
 
-from via_patterns.via_patterns import Pattern, add_via_pattern
+from via_patterns.via_patterns import SQRT2, Pattern, add_via_pattern
 
 from .conftest import generate_render
 
@@ -72,19 +73,20 @@ def work_board(board_path):
     yield _isolation
 
 
-@pytest.mark.parametrize("number_of_vias", [1, 5, 10])
+@pytest.mark.parametrize("number_of_vias", [1, 2, 5, 10])
+@pytest.mark.parametrize("pattern", [Pattern.PERPENDICULAR, Pattern.DIAGONAL])
 @pytest.mark.parametrize("start_position", [(0, 0), (2, 3)])
 @pytest.mark.parametrize("net", ["Net1", 2])
 @pytest.mark.parametrize("extra_space", [0, pcbnew.FromMM(1)])
-def test_via_pattern_perpendicular(
-    number_of_vias, start_position, net, extra_space, board_path, work_board
+def test_via_pattern(
+    number_of_vias, pattern, start_position, net, extra_space, board_path, work_board
 ) -> None:
     start_position = pcbnew.VECTOR2I_MM(*start_position)
     with work_board() as board:
         vias = add_via_pattern(
             board,
             number_of_vias,
-            Pattern.PERPENDICULAR,
+            pattern,
             start_position=start_position,
             net=net,
             extra_space=extra_space,
@@ -94,14 +96,19 @@ def test_via_pattern_perpendicular(
     items = board.AllConnectedItems()
     items = sorted(items, key=lambda i: [i.GetX(), i.GetY()])
     assert len(items) == number_of_vias
+
     for i in range(0, number_of_vias):
         # default clearance should be 0.2mm and via radius 0.3mm
         actual = items[i].GetPosition()
-        expected = (
-            start_position
-            + pcbnew.VECTOR2I_MM(0.8 * i, 0)
-            + pcbnew.VECTOR2I(extra_space * i, 0)
-        )
+        if pattern == Pattern.PERPENDICULAR:
+            expected = (
+                start_position
+                + pcbnew.VECTOR2I(800000 * i, 0)
+                + pcbnew.VECTOR2I(extra_space * i, 0)
+            )
+        else:
+            xy = math.ceil((800000 + extra_space) / SQRT2) * i
+            expected = start_position + pcbnew.VECTOR2I(xy, xy)
         assert actual == expected
     assert items[0].GetNetname() == net if isinstance(net, str) else f"Net{net}"
     for i in range(1, number_of_vias):
@@ -112,3 +119,9 @@ def test_via_pattern_wrong_net_type(work_board) -> None:
     with work_board() as board:
         with pytest.raises(TypeError, match="The `net` argument must be str or int"):
             add_via_pattern(board, 5, Pattern.PERPENDICULAR, net=("Net1",))  # type: ignore
+
+
+def test_via_pattern_unsupported_pattern_type(work_board) -> None:
+    with work_board() as board:
+        with pytest.raises(ValueError, match="Unsupported pattern"):
+            add_via_pattern(board, 5, "SOME_PATTERN")

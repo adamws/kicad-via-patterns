@@ -8,7 +8,7 @@ import pcbnew
 import wx
 
 from .dialog import MainDialog
-from .via_patterns import Pattern, add_via_pattern
+from .via_patterns import add_via_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +66,10 @@ class PluginAction(pcbnew.ActionPlugin):
 
         dlg = MainDialog(pcb_frame)
         if dlg.ShowModal() == wx.ID_OK:
-            # for now only number of vias to place
-            number_of_vias = dlg.get_number_of_vias()
             add_via_pattern(
                 board,
-                number_of_vias,
-                Pattern.PERPENDICULAR,
+                dlg.get_number_of_vias(),
+                dlg.get_pattern_type(),
                 select=True,
                 via=selected_via,
             )

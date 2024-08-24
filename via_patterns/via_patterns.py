@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from enum import Enum
 from typing import List, Optional, Union
 
@@ -8,10 +9,12 @@ import pcbnew
 
 logger = logging.getLogger(__name__)
 ZERO_POSITION = pcbnew.VECTOR2I(0, 0)
+SQRT2 = math.sqrt(2)
 
 
 class Pattern(str, Enum):
     PERPENDICULAR = "Perpendicular"
+    DIAGONAL = "Diagonal"
 
     @classmethod
     def get(cls, name: str) -> Pattern:
@@ -38,7 +41,7 @@ def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
 def add_via_pattern(
     board: pcbnew.BOARD,
     count: int,
-    pattern: Pattern,
+    pattern: Union[Pattern, str],
     *,
     via: Optional[pcbnew.PCB_VIA] = None,
     start_position: pcbnew.VECTOR2I = ZERO_POSITION,
@@ -47,6 +50,11 @@ def add_via_pattern(
     select: bool = False,
 ) -> List[pcbnew.PCB_VIA]:
     vias: List[pcbnew.PCB_VIA] = []
+
+    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR]:
+        msg = "Unsupported pattern"
+        raise ValueError(msg)
+
     if not via:
         _via = _default_via(board)
         _via.SetStart(start_position)
@@ -66,10 +74,6 @@ def add_via_pattern(
             msg = "The `via` must be element of `board`"
             raise ValueError(msg)
 
-    if pattern != Pattern.PERPENDICULAR:
-        msg = "Unsupported pattern"
-        raise ValueError(msg)
-
     vias.append(_via)
 
     via_width = _via.GetWidth()
@@ -85,7 +89,12 @@ def add_via_pattern(
     for _ in range(0, count - 1):
         v = _via.Duplicate()
         v.SetNetCode(0)
-        move += pcbnew.VECTOR2I(offset, 0)
+        if pattern == Pattern.PERPENDICULAR:
+            move += pcbnew.VECTOR2I(offset, 0)
+        else:  # Pattern.DIAGONAL
+            # use ceil to avoid DRC errors on float rounding
+            xy = math.ceil(offset / SQRT2)
+            move += pcbnew.VECTOR2I(xy, xy)
         v.Move(move)
         if select:
             v.SetSelected()
