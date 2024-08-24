@@ -55,6 +55,10 @@ def add_via_pattern(
         msg = "Unsupported pattern"
         raise ValueError(msg)
 
+    if extra_space < 0:
+        msg = "The `extra_space` argument must be greater than 0"
+        raise ValueError(msg)
+
     if not via:
         _via = _default_via(board)
         _via.SetStart(start_position)
