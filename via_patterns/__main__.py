@@ -1,18 +1,12 @@
-from via_patterns._version import __version__
+import logging
+import sys
 
-try:
-    import pcbnew
-
-    pcbnew_version = pcbnew.Version()
-except Exception:
-    print("Could not load `pcbnew`, probably running from virtual environment")
-    pcbnew_version = None
+logger = logging.getLogger(__name__)
 
 
 def app():
-    if pcbnew_version:
-        print(f"pcbnew version: {pcbnew_version}")
-    print(f"plugin version: {__version__}")
+    logger.error("This plugin is not usable when running as python module")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
