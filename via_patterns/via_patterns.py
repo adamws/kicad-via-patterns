@@ -74,7 +74,7 @@ def add_via_pattern(
         board.Add(_via)
     else:
         _via = via
-        if via.GetParent() != board:
+        if via.GetParent().m_Uuid != board.m_Uuid:
             msg = "The `via` must be element of `board`"
             raise ValueError(msg)
 
