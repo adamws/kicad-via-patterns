@@ -106,3 +106,9 @@ def test_via_pattern_perpendicular(
     assert items[0].GetNetname() == net if isinstance(net, str) else f"Net{net}"
     for i in range(1, number_of_vias):
         assert items[i].GetNetCode() == 0
+
+
+def test_via_pattern_wrong_net_type(work_board) -> None:
+    with work_board() as board:
+        with pytest.raises(TypeError, match="The `net` argument must be str or int"):
+            add_via_pattern(board, 5, Pattern.PERPENDICULAR, net=("Net1",))  # type: ignore

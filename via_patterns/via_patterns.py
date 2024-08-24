@@ -58,7 +58,7 @@ def add_via_pattern(
                 _via.SetNetCode(net)
             else:
                 msg = "The `net` argument must be str or int"
-                raise ValueError(msg)
+                raise TypeError(msg)
         board.Add(_via)
     else:
         _via = via
