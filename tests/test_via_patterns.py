@@ -1,12 +1,11 @@
 import logging
-import math
 from contextlib import contextmanager
 from typing import List, Union
 
 import pcbnew
 import pytest
 
-from via_patterns.via_patterns import SQRT2, Pattern, add_via_pattern
+from via_patterns.via_patterns import SQRT2, SQRT3, Pattern, add_via_pattern
 
 from .conftest import generate_render
 
@@ -95,9 +94,17 @@ def assert_via_positions(
         space = via_radius * 2 + clearance
         if pattern == Pattern.PERPENDICULAR:
             expected = start_position + pcbnew.VECTOR2I((space + extra_space) * i, 0)
-        else:
-            xy = math.ceil((space + extra_space) / SQRT2) * i
+        elif pattern == Pattern.DIAGONAL:
+            xy = int((space + extra_space) / SQRT2) * i
             expected = start_position + pcbnew.VECTOR2I(xy, xy)
+        else:  # Pattern.STAGGER
+            if i % 2:
+                x = int((space + extra_space) / 2) + (space + extra_space) * (i // 2)
+                y = int((space + extra_space) * SQRT3 / 2)
+            else:
+                x = (space + extra_space) * (i // 2)
+                y = 0
+            expected = start_position + pcbnew.VECTOR2I(x, y)
         assert actual == expected
 
 
@@ -111,7 +118,9 @@ def assert_via_nets(
 
 
 @pytest.mark.parametrize("number_of_vias", [1, 2, 5, 10])
-@pytest.mark.parametrize("pattern", [Pattern.PERPENDICULAR, Pattern.DIAGONAL])
+@pytest.mark.parametrize(
+    "pattern", [Pattern.PERPENDICULAR, Pattern.DIAGONAL, Pattern.STAGGER]
+)
 @pytest.mark.parametrize("start_position", [(0, 0), (2, 3)])
 @pytest.mark.parametrize("net", ["Net1", 2])
 @pytest.mark.parametrize("extra_space", [0, pcbnew.FromMM(1)])

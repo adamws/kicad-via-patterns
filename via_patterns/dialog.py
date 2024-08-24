@@ -127,7 +127,11 @@ class MainDialog(wx.Dialog):
         self.SetSizerAndFit(box)
 
     def get_main_section(self) -> wx.Sizer:
-        choices = [Pattern.PERPENDICULAR.value, Pattern.DIAGONAL.value]
+        choices = [
+            Pattern.PERPENDICULAR.value,
+            Pattern.DIAGONAL.value,
+            Pattern.STAGGER.value,
+        ]
         pattern_ctrl = LabeledDropdownCtrl(self, "Type:", choices)
 
         size_ctrl = LabeledTextCtrl(

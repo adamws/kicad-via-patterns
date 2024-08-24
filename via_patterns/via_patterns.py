@@ -10,11 +10,13 @@ import pcbnew
 logger = logging.getLogger(__name__)
 ZERO_POSITION = pcbnew.VECTOR2I(0, 0)
 SQRT2 = math.sqrt(2)
+SQRT3 = math.sqrt(3)
 
 
 class Pattern(str, Enum):
     PERPENDICULAR = "Perpendicular"
     DIAGONAL = "Diagonal"
+    STAGGER = "Stagger"
 
     @classmethod
     def get(cls, name: str) -> Pattern:
@@ -51,7 +53,7 @@ def add_via_pattern(
 ) -> List[pcbnew.PCB_VIA]:
     vias: List[pcbnew.PCB_VIA] = []
 
-    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR]:
+    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER]:
         msg = "Unsupported pattern"
         raise ValueError(msg)
 
@@ -90,15 +92,22 @@ def add_via_pattern(
     move = pcbnew.VECTOR2I(0, 0)
     offset = clearance + via_width + extra_space
 
-    for _ in range(0, count - 1):
+    # used for STAGGER pattern:
+    zigzag = [(0.5, SQRT3 / 2), (0.5, -SQRT3 / 2)]
+
+    for i in range(0, count - 1):
         v = _via.Duplicate()
         v.SetNetCode(0)
         if pattern == Pattern.PERPENDICULAR:
             move += pcbnew.VECTOR2I(offset, 0)
-        else:  # Pattern.DIAGONAL
-            # use ceil to avoid DRC errors on float rounding
-            xy = math.ceil(offset / SQRT2)
+        elif pattern == Pattern.DIAGONAL:
+            xy = int(offset / SQRT2)
             move += pcbnew.VECTOR2I(xy, xy)
+        else:  # Pattern.STAGGER
+            coeffs = zigzag[i % 2]
+            x = int(offset * coeffs[0])
+            y = int(offset * coeffs[1])
+            move += pcbnew.VECTOR2I(x, y)
         v.Move(move)
         if select:
             v.SetSelected()
