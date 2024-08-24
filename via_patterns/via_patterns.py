@@ -76,6 +76,7 @@ def add_via_pattern(
     clearance = _via.GetOwnClearance(_via.GetLayer())
 
     logger.debug(f"via_width: {via_width}, clearance: {clearance}")
+    logger.debug(f"extra_space: {extra_space}")
     logger.debug(f"netclass: {_via.GetNetClassName()}")
 
     move = pcbnew.VECTOR2I(0, 0)

@@ -27,7 +27,7 @@ def board_path(tmpdir) -> str:
 
 
 @pytest.fixture()
-def work_board(board_path, tmpdir):
+def work_board(board_path):
     @contextmanager
     def _isolation():
         board = pcbnew.CreateEmptyBoard()
@@ -72,9 +72,37 @@ def work_board(board_path, tmpdir):
     yield _isolation
 
 
-def test_via_patterns(board_path, work_board) -> None:
+@pytest.mark.parametrize("number_of_vias", [1, 5, 10])
+@pytest.mark.parametrize("start_position", [(0, 0), (2, 3)])
+@pytest.mark.parametrize("net", ["Net1", 2])
+@pytest.mark.parametrize("extra_space", [0, pcbnew.FromMM(1)])
+def test_via_pattern_perpendicular(
+    number_of_vias, start_position, net, extra_space, board_path, work_board
+) -> None:
+    start_position = pcbnew.VECTOR2I_MM(*start_position)
     with work_board() as board:
-        vias = add_via_pattern(board, 5, Pattern.PERPENDICULAR, net="Net1")
+        vias = add_via_pattern(
+            board,
+            number_of_vias,
+            Pattern.PERPENDICULAR,
+            start_position=start_position,
+            net=net,
+            extra_space=extra_space,
+        )
     board = pcbnew.LoadBoard(board_path)
-    assert len(vias) == 5
-    assert len(board.AllConnectedItems()) == 5
+    assert len(vias) == number_of_vias
+    items = board.AllConnectedItems()
+    items = sorted(items, key=lambda i: [i.GetX(), i.GetY()])
+    assert len(items) == number_of_vias
+    for i in range(0, number_of_vias):
+        # default clearance should be 0.2mm and via radius 0.3mm
+        actual = items[i].GetPosition()
+        expected = (
+            start_position
+            + pcbnew.VECTOR2I_MM(0.8 * i, 0)
+            + pcbnew.VECTOR2I(extra_space * i, 0)
+        )
+        assert actual == expected
+    assert items[0].GetNetname() == net if isinstance(net, str) else f"Net{net}"
+    for i in range(1, number_of_vias):
+        assert items[i].GetNetCode() == 0
