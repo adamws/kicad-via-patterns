@@ -62,8 +62,11 @@ def add_via_pattern(
         msg = "The `extra_space` argument must be greater than 0"
         raise ValueError(msg)
 
-    if track_width and pattern != Pattern.PERPENDICULAR:
-        msg = "The `track_width` support temporarily only for PERPENDICULAR pattern"
+    if track_width and pattern not in [Pattern.PERPENDICULAR, Pattern.DIAGONAL]:
+        msg = (
+            "The `track_width` support temporarily only for "
+            "PERPENDICULAR and DIAGONAL patterns"
+        )
         raise ValueError(msg)
 
     if not via:
@@ -99,6 +102,17 @@ def add_via_pattern(
     move = pcbnew.VECTOR2I(0, 0)
     offset = via_clearance + max(via_width, track_width) + extra_space
 
+    if pattern == Pattern.DIAGONAL:
+        if track_width > 2 * int(
+            ((via_width + via_clearance) / SQRT2) - via_clearance - via_width / 2
+        ):
+            # track to wide to be ignored in DIAGONAL pattern
+            offset = int(via_width / 2) + via_clearance + int(track_width / 2)
+        else:
+            offset = int(offset / SQRT2)
+
+    logger.debug(f"offset: {offset}")
+
     # used for STAGGER pattern:
     zigzag = [(0.5, SQRT3 / 2), (0.5, -SQRT3 / 2)]
 
@@ -108,8 +122,7 @@ def add_via_pattern(
         if pattern == Pattern.PERPENDICULAR:
             move += pcbnew.VECTOR2I(offset, 0)
         elif pattern == Pattern.DIAGONAL:
-            xy = int(offset / SQRT2)
-            move += pcbnew.VECTOR2I(xy, xy)
+            move += pcbnew.VECTOR2I(offset, offset)
         else:  # Pattern.STAGGER
             coeffs = zigzag[i % 2]
             x = int(offset * coeffs[0])

@@ -105,7 +105,11 @@ def assert_via_positions(
         if pattern == Pattern.PERPENDICULAR:
             expected = start_position + pcbnew.VECTOR2I((space + extra_space) * i, 0)
         elif pattern == Pattern.DIAGONAL:
-            xy = int((space + extra_space) / SQRT2) * i
+            # this assumption works only for via width 0.6 and clearance 0.2:
+            if track_width <= 100000:
+                xy = int((space + extra_space) / SQRT2) * i
+            else:
+                xy = (int(via_width / 2) + clearance + int(track_width / 2)) * i
             expected = start_position + pcbnew.VECTOR2I(xy, xy)
         else:  # Pattern.STAGGER
             if i % 2:
@@ -219,11 +223,11 @@ def test_via_pattern_negative_extra_space(work_board) -> None:
 
 
 @pytest.mark.parametrize("number_of_vias", [2, 5])
-@pytest.mark.parametrize("track_width", [0.2, 0.65])
+@pytest.mark.parametrize("pattern", [Pattern.PERPENDICULAR, Pattern.DIAGONAL])
+@pytest.mark.parametrize("track_width", [0.1, 0.2, 0.65])
 def test_via_pattern_with_track_specified(
-    number_of_vias, track_width, board_path, work_board
+    number_of_vias, pattern, track_width, board_path, work_board
 ) -> None:
-    pattern = Pattern.PERPENDICULAR
     start_position = ZERO_POSITION
     net = "Net1"
     track_width = pcbnew.FromMM(track_width)
