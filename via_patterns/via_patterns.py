@@ -48,6 +48,7 @@ def add_via_pattern(
     via: Optional[pcbnew.PCB_VIA] = None,
     start_position: pcbnew.VECTOR2I = ZERO_POSITION,
     net: Union[str, int] = 0,
+    track_width: int = 0,
     extra_space: int = 0,
     select: bool = False,
 ) -> List[pcbnew.PCB_VIA]:
@@ -59,6 +60,10 @@ def add_via_pattern(
 
     if extra_space < 0:
         msg = "The `extra_space` argument must be greater than 0"
+        raise ValueError(msg)
+
+    if track_width and pattern != Pattern.PERPENDICULAR:
+        msg = "The `track_width` support temporarily only for PERPENDICULAR pattern"
         raise ValueError(msg)
 
     if not via:
@@ -83,14 +88,16 @@ def add_via_pattern(
     vias.append(_via)
 
     via_width = _via.GetWidth()
-    clearance = _via.GetOwnClearance(_via.GetLayer())
+    via_clearance = _via.GetOwnClearance(_via.GetLayer())
 
-    logger.debug(f"via_width: {via_width}, clearance: {clearance}")
+    logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
+    if track_width:
+        logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
     logger.debug(f"netclass: {_via.GetNetClassName()}")
 
     move = pcbnew.VECTOR2I(0, 0)
-    offset = clearance + via_width + extra_space
+    offset = via_clearance + max(via_width, track_width) + extra_space
 
     # used for STAGGER pattern:
     zigzag = [(0.5, SQRT3 / 2), (0.5, -SQRT3 / 2)]

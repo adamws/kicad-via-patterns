@@ -1,20 +1,29 @@
 import logging
 from contextlib import contextmanager
+from pathlib import Path
 from typing import List, Union
 
 import pcbnew
 import pytest
 
-from via_patterns.via_patterns import SQRT2, SQRT3, Pattern, add_via_pattern
+from via_patterns.via_patterns import (
+    SQRT2,
+    SQRT3,
+    ZERO_POSITION,
+    Pattern,
+    add_via_pattern,
+)
 
 from .conftest import generate_render
 
 logger = logging.getLogger(__name__)
 
 
-def _add_track(board, start: pcbnew.VECTOR2I, end: pcbnew.VECTOR2I, layer):
+def _add_track(
+    board, start: pcbnew.VECTOR2I, end: pcbnew.VECTOR2I, layer, *, width: int = 250000
+):
     track = pcbnew.PCB_TRACK(board)
-    track.SetWidth(pcbnew.FromMM(0.25))
+    track.SetWidth(width)
     track.SetLayer(layer)
     track.SetStart(start)
     track.SetEnd(end)
@@ -86,12 +95,13 @@ def assert_via_positions(
     start_position: pcbnew.VECTOR2I,
     extra_space: int,
     clearance: int = 200000,
-    via_radius: int = 300000,
+    via_width: int = 600000,
+    track_width: int = 0,
 ) -> None:
     for i, item in enumerate(items):
         # default clearance should be 0.2mm and via radius 0.3mm
         actual = item.GetPosition()
-        space = via_radius * 2 + clearance
+        space = max(via_width, track_width) + clearance
         if pattern == Pattern.PERPENDICULAR:
             expected = start_position + pcbnew.VECTOR2I((space + extra_space) * i, 0)
         elif pattern == Pattern.DIAGONAL:
@@ -184,7 +194,7 @@ def test_via_pattern_with_prepopulated_via(
     assert len(vias) == number_of_vias
     items = get_elements(board_path)
     assert len(items) == number_of_vias
-    assert_via_positions(items, pattern, start_position, extra_space, via_radius=400000)
+    assert_via_positions(items, pattern, start_position, extra_space, via_width=800000)
     assert_via_nets(items, "Net3")
 
 
@@ -206,3 +216,50 @@ def test_via_pattern_negative_extra_space(work_board) -> None:
             ValueError, match="The `extra_space` argument must be greater than 0"
         ):
             add_via_pattern(board, 5, Pattern.PERPENDICULAR, extra_space=-10)
+
+
+@pytest.mark.parametrize("number_of_vias", [2, 5])
+@pytest.mark.parametrize("track_width", [0.2, 0.65])
+def test_via_pattern_with_track_specified(
+    number_of_vias, track_width, board_path, work_board
+) -> None:
+    pattern = Pattern.PERPENDICULAR
+    start_position = ZERO_POSITION
+    net = "Net1"
+    track_width = pcbnew.FromMM(track_width)
+    extra_space = 0
+    with work_board() as board:
+        vias = add_via_pattern(
+            board,
+            number_of_vias,
+            pattern,
+            start_position=start_position,
+            net=net,
+            track_width=track_width,
+            extra_space=extra_space,
+        )
+    assert len(vias) == number_of_vias
+    items = get_elements(board_path)
+    assert len(items) == number_of_vias
+    assert_via_positions(
+        items, pattern, start_position, extra_space, track_width=track_width
+    )
+    assert_via_nets(items, net)
+
+    # add tracks to created vias in separate board which will be used
+    # for DRC checks and extra render for html report
+    board_with_tracks = pcbnew.LoadBoard(board_path)
+    for v in vias:
+        start = v.GetPosition()
+        for layer, direction in [(pcbnew.F_Cu, 1), (pcbnew.B_Cu, -1)]:
+            _add_track(
+                board_with_tracks,
+                start,
+                start + pcbnew.VECTOR2I_MM(0, direction),
+                layer,
+                width=track_width,
+            )
+
+    pcb_path = Path(board_path).with_name("test1.kicad_pcb")
+    board_with_tracks.Save(pcb_path)
+    generate_render(pcb_path)
