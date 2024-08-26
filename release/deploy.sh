@@ -18,15 +18,14 @@ if [ -z "$(git status --porcelain)" ]; then
 fi
 
 mkdir .circleci
-# remove --dry-run and re-enable wget when repository switched to public:
-#wget https://raw.githubusercontent.com/adamws/kicad-via-patterns/master/.circleci/ghpages-config.yml -O .circleci/config.yml
+wget https://raw.githubusercontent.com/adamws/kicad-via-patterns/master/.circleci/ghpages-config.yml -O .circleci/config.yml
 touch .nojekyll
 
 echo "==> Start deploying"
 git add -A
 git commit -m "Deploy plugin repository: ${CIRCLE_SHA1}"
 
-git push --dry-run --force $CIRCLE_REPOSITORY_URL master:gh-pages
+git push --force $CIRCLE_REPOSITORY_URL master:gh-pages
 
 rm -fr .git
 
