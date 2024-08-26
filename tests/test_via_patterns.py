@@ -194,6 +194,17 @@ def test_via_pattern(
         # see https://gitlab.com/kicad/code/kicad/-/issues/17504
         assert_drc(tmpdir, board_with_tracks_path)
 
+    if KICAD_VERSION >= (8, 0, 0):
+        # to check if pattern is efficient, move second via (with tracks) towards
+        # first one by some predefined step to see if DRC clearance violation starts to be detected
+        board_with_vias_moved = pcbnew.LoadBoard(board_with_tracks_path)
+        for t in board_with_vias_moved.TracksInNet(2):
+            t.Move(pcbnew.VECTOR2I_MM(-0.001, 0))
+        board_with_vias_moved_path = Path(board_path).with_name("test2.kicad_pcb")
+        board_with_vias_moved.Save(board_with_vias_moved_path)
+        with pytest.raises(AssertionError):
+            assert_drc(tmpdir, board_with_vias_moved_path, log=False)
+
 
 def test_via_pattern_wrong_net_type(work_board) -> None:
     with work_board() as board:
