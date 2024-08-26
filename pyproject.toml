@@ -40,14 +40,14 @@ description_full = [
 identifier = "com.github.adamws.kicad-via-patterns"
 author = { name = "adamws", web="https://adamws.github.io" }
 status = "development"
-kicad_version = "8.0"
+kicad_version = "7.0"
 sources = ["via_patterns"]
 include = [
   "via_patterns/*.py",
   "via_patterns/icon.png",
 ]
 icon = "resources/icon.png"
-download_url = "https://adamws.github.io/kicad-plugin-template/{zip_name}"
+download_url = "https://adamws.github.io/kicad-via-patterns/{zip_name}"
 
 [tool.hatch.build.targets.kicad-package.hooks.kicad-repository]
 enable-by-default = false
