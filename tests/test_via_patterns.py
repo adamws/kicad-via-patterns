@@ -224,3 +224,11 @@ def test_via_pattern_negative_extra_space(work_board) -> None:
             ValueError, match="The `extra_space` argument must be greater or equal 0"
         ):
             add_via_pattern(board, 5, Pattern.PERPENDICULAR, extra_space=-10)
+
+
+def test_via_pattern_negative_track_width(work_board) -> None:
+    with work_board() as board:
+        with pytest.raises(
+            ValueError, match="The `track_width` argument must be greater or equal 0"
+        ):
+            add_via_pattern(board, 5, Pattern.PERPENDICULAR, track_width=-10)
