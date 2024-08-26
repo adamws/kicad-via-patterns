@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, cast
 
 import pcbnew
 import wx
@@ -72,6 +72,7 @@ class PluginAction(pcbnew.ActionPlugin):
                 dlg.get_pattern_type(),
                 select=True,
                 via=selected_via,
+                track_width=cast(int, pcbnew.FromMM(float(dlg.get_track_width()))),
             )
 
         dlg.Destroy()
