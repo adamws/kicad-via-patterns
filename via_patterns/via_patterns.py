@@ -58,15 +58,12 @@ def add_via_pattern(
         msg = "Unsupported pattern"
         raise ValueError(msg)
 
-    if extra_space < 0:
-        msg = "The `extra_space` argument must be greater than 0"
+    if track_width < 0:
+        msg = "The `track_width` argument must be greater or equal 0"
         raise ValueError(msg)
 
-    if track_width and pattern not in [Pattern.PERPENDICULAR, Pattern.DIAGONAL]:
-        msg = (
-            "The `track_width` support temporarily only for "
-            "PERPENDICULAR and DIAGONAL patterns"
-        )
+    if extra_space < 0:
+        msg = "The `extra_space` argument must be greater or equal 0"
         raise ValueError(msg)
 
     if not via:
@@ -94,39 +91,72 @@ def add_via_pattern(
     via_clearance = _via.GetOwnClearance(_via.GetLayer())
 
     logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
-    if track_width:
-        logger.debug(f"track_width: {track_width}")
+    if track_width == 0:
+        default_netclass = board.GetAllNetClasses()["Default"]
+        track_width = default_netclass.GetTrackWidth()
+        logger.debug(
+            "The `track_width` argument not specified, using default "
+            f"netclass value: {track_width}"
+        )
+    logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
     logger.debug(f"netclass: {_via.GetNetClassName()}")
 
-    move = pcbnew.VECTOR2I(0, 0)
-    offset = via_clearance + max(via_width, track_width) + extra_space
+    if pattern in [Pattern.STAGGER, Pattern.DIAGONAL] and track_width > via_width:
+        logger.debug(
+            f"The '{pattern}' pattern when `track_width` > `via_width` makes no sense, "
+            f"replacing with '{Pattern.PERPENDICULAR}' pattern"
+        )
+        pattern = Pattern.PERPENDICULAR
 
-    if pattern == Pattern.DIAGONAL:
+    move = pcbnew.VECTOR2I(0, 0)
+    offset_x = 0
+    offset_y = 0
+
+    if pattern == Pattern.PERPENDICULAR:
+        offset_x = via_clearance + max(via_width, track_width) + extra_space
+    elif pattern == Pattern.DIAGONAL:
         if track_width > 2 * int(
             ((via_width + via_clearance) / SQRT2) - via_clearance - via_width / 2
         ):
-            # track to wide to be ignored in DIAGONAL pattern
-            offset = int(via_width / 2) + via_clearance + int(track_width / 2)
+            # track too wide to be ignored in DIAGONAL pattern
+            offset_x = int(via_width / 2) + via_clearance + int(track_width / 2)
         else:
-            offset = int(offset / SQRT2)
+            logger.debug("Track width small enough to be ignored")
+            offset_x = via_clearance + max(via_width, track_width) + extra_space
+            offset_x = int(offset_x / SQRT2)
+        offset_y = offset_x
+    else:  # Pattern.STAGGER
+        offset_x = (
+            2 * via_clearance + max(via_width, track_width) + track_width + extra_space
+        )
+        r = via_width // 2
+        offset_y = int(
+            math.sqrt(
+                (3 * r * r)
+                + (2 * r * via_clearance)
+                - (r * track_width)
+                - (via_clearance * track_width)
+                - (track_width * track_width) / 4
+            )
+        )
 
-    logger.debug(f"offset: {offset}")
+    logger.debug(f"offsets: x: {offset_x} y: {offset_y}")
 
     # used for STAGGER pattern:
-    zigzag = [(0.5, SQRT3 / 2), (0.5, -SQRT3 / 2)]
+    zigzag = [(0.5, 1), (0.5, -1)]
 
     for i in range(0, count - 1):
         v = _via.Duplicate()
         v.SetNetCode(0)
         if pattern == Pattern.PERPENDICULAR:
-            move += pcbnew.VECTOR2I(offset, 0)
+            move += pcbnew.VECTOR2I(offset_x, 0)
         elif pattern == Pattern.DIAGONAL:
-            move += pcbnew.VECTOR2I(offset, offset)
+            move += pcbnew.VECTOR2I(offset_x, offset_y)
         else:  # Pattern.STAGGER
             coeffs = zigzag[i % 2]
-            x = int(offset * coeffs[0])
-            y = int(offset * coeffs[1])
+            x = int(offset_x * coeffs[0])
+            y = int(offset_y * coeffs[1])
             move += pcbnew.VECTOR2I(x, y)
         v.Move(move)
         if select:
