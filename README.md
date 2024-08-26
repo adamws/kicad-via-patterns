@@ -53,6 +53,7 @@ Custom repository is automatically updated with latest `master` branch builds.
    Select pattern type and size. Set track width. Click OK.
 
 3. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties except net).
+    - Pattern elements will be automatically selected to ease reposition or rotation/flip.
 4. Update nets of created vias and continue routing.
 
 ## License
