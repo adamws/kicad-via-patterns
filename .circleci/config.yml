@@ -46,16 +46,15 @@ jobs:
             python -m coverage combine /tmp/workspace/.coverage-*
             python -m coverage report
             python -m coverage html
-# enable when repository switched to public
-#      - when: # run only on master
-#          condition:
-#            equal: [ master, << pipeline.git.branch >> ]
-#          steps:
-#            - run:
-#                name: Publish coverage
-#                command: |
-#                  python -m pip install coveralls
-#                  python -m coveralls
+      - when: # run only on master
+          condition:
+            equal: [ master, << pipeline.git.branch >> ]
+          steps:
+            - run:
+                name: Publish coverage
+                command: |
+                  python -m pip install coveralls
+                  python -m coveralls
       - store_artifacts:
           path: .coverage
       - store_artifacts:
