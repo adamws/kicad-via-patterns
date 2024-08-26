@@ -9,12 +9,6 @@
 
 Add vias using various patterns
 
-**Table of Contents**
-
-- [Key Features](#key-features)
-- [How to use](#how-to-use)
-- [License](#license)
-
 ## Key Features
 
 Arranges vias in pattern with respect to clearance rules and trace width.
@@ -39,7 +33,27 @@ Following table shows images of supported patterns with clearance outlines enabl
   </tr>
 </table>
 
+## Installation
+
+> [!WARNING]
+> This plugin is not yet available in official KiCad's plugin repository
+
+To install development version, you must first open KiCad's plugin manager and
+add `https://adamws.github.io/kicad-via-patterns/repository.json` to repository list.
+Then you can use it to install plugin as normally.
+Custom repository is automatically updated with latest `master` branch builds.
+
 ## How to use
+
+1. Select via.
+2. Click plugin icon to open dialog window.
+
+    ![gui](resources/gui.png)
+
+   Select pattern type and size. Set track width. Click OK.
+
+3. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties except net).
+4. Update nets of created vias and continue routing.
 
 ## License
 
