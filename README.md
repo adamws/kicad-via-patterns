@@ -17,6 +17,28 @@ Add vias using various patterns
 
 ## Key Features
 
+Arranges vias in pattern with respect to clearance rules and trace width.
+Following table shows images of supported patterns with clearance outlines enabled.
+
+<table>
+  <tr>
+    <td align="center"><b>Pattern</b></td>
+    <th align="center"><b>Example</b></th>
+  </tr>
+  <tr>
+    <td align="center" style="vertical-align: middle;">Perpendicular</td>
+    <td align="center"><img src="resources/perpendicular.png" width="80%"/></td>
+  </tr>
+  <tr>
+    <td align="center" style="vertical-align: middle;">Diagonal</td>
+    <td align="center"><img src="resources/diagonal.png" width="80%"/></td>
+  </tr>
+  <tr>
+    <td align="center" style="vertical-align: middle;">Stagger</td>
+    <td align="center"><img src="resources/stagger.png" width="80%"/></td>
+  </tr>
+</table>
+
 ## How to use
 
 ## License
