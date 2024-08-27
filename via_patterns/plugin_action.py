@@ -63,10 +63,11 @@ class PluginAction(pcbnew.ActionPlugin):
         selected_via: Optional[pcbnew.PCB_VIA] = None
         if len(selection) == 1:
             selected_via = next(
-                f.Cast() for f in selection if isinstance(f.Cast(), pcbnew.PCB_VIA)
+                (f.Cast() for f in selection if isinstance(f.Cast(), pcbnew.PCB_VIA)),
+                None,
             )
         else:
-            msg = f"Must select single element, selected {len(selection)}"
+            msg = f"Must select single via element, selected {len(selection)} elements"
             raise Exception(msg)
 
         if not selected_via:
