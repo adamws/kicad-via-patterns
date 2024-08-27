@@ -1,5 +1,6 @@
 __pycache__/
 via_patterns/_version.py
+via_patterns/plugin.log
 dist/
 *.egg-info/
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from typing import Optional, cast
 
 import pcbnew
@@ -13,6 +14,31 @@ from .via_patterns import add_via_pattern
 logger = logging.getLogger(__name__)
 
 
+def setup_logging(destination: str) -> None:
+    # Remove all handlers associated with the root logger object.
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    # set up logger
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename=f"{destination}/plugin.log",
+        filemode="w",
+        format="%(asctime)s %(name)s %(lineno)d: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
+def get_kicad_version() -> str:
+    version = pcbnew.Version()
+    if int(version.split(".")[0]) < 7:
+        msg = f"KiCad version {version} is not supported"
+        raise Exception(msg)
+    logger.info(f"Plugin executed with KiCad version: {version}")
+    logger.info(f"Plugin executed with python version: {repr(sys.version)}")
+    return version
+
+
 class PluginAction(pcbnew.ActionPlugin):
     def defaults(self) -> None:
         self.name = "Via Patterns"
@@ -22,31 +48,14 @@ class PluginAction(pcbnew.ActionPlugin):
         self.icon_file_name = os.path.join(os.path.dirname(__file__), "icon.png")
 
     def Initialize(self) -> None:
-        version = pcbnew.Version()
-        if int(version.split(".")[0]) < 7:
-            msg = f"KiCad version {version} is not supported"
-            raise Exception(msg)
+        self.window = wx.GetActiveWindow()
+        self.plugin_path = os.path.dirname(__file__)
+        setup_logging(self.plugin_path)
 
-        # Remove all handlers associated with the root logger object.
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-
-        log_file = "via-patterns.log"
-
-        # set up logger
-        logging.basicConfig(
-            level=logging.DEBUG,
-            filename=log_file,
-            filemode="w",
-            format="[%(filename)s:%(lineno)d]: %(message)s",
-        )
+        _ = get_kicad_version()
 
     def Run(self) -> None:
         self.Initialize()
-
-        pcb_frame = next(
-            x for x in wx.GetTopLevelWindows() if x.GetName() == "PcbFrame"
-        )
 
         board = pcbnew.GetBoard()
 
@@ -76,7 +85,7 @@ class PluginAction(pcbnew.ActionPlugin):
             units_label=units_label,
         )
 
-        dlg = MainDialog(pcb_frame, state)
+        dlg = MainDialog(self.window, state)
         if dlg.ShowModal() == wx.ID_OK:
             add_via_pattern(
                 board,
