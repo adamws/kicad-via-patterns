@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import string
+from dataclasses import dataclass
 from typing import List
 
 import wx
@@ -9,6 +10,12 @@ import wx
 from .via_patterns import Pattern
 
 TEXT_CTRL_EXTRA_SPACE = 25
+
+
+@dataclass
+class WindowState:
+    track_width: str = ""
+    units_label: str = "mm"
 
 
 class IntValidator(wx.Validator):
@@ -175,8 +182,12 @@ class LabeledDropdownCtrl(wx.Panel):
 
 
 class MainDialog(wx.Dialog):
-    def __init__(self: MainDialog, parent: wx.Frame) -> None:
+    def __init__(
+        self: MainDialog, parent: wx.Frame, state: WindowState = WindowState()
+    ) -> None:
         super().__init__(parent, -1, "Via Patterns")
+        self.initial_track_width = state.track_width
+        self.units_label = state.units_label
 
         buttons = self.CreateButtonSizer(wx.OK | wx.CANCEL)
 
@@ -205,11 +216,10 @@ class MainDialog(wx.Dialog):
         track_width_ctrl = LabeledTextCtrl(
             self,
             "Track width:",
-            value=str(0.2),
-            width=5,
+            value=self.initial_track_width,
             validator=FloatValidator(),
         )
-        mm_label = wx.StaticText(self, -1, "mm")
+        track_width_label = wx.StaticText(self, -1, self.units_label)
 
         box = wx.StaticBox(self, label="Pattern settings")
         sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
@@ -220,7 +230,7 @@ class MainDialog(wx.Dialog):
 
         row2 = wx.BoxSizer(wx.HORIZONTAL)
         row2.Add(track_width_ctrl, 0, wx.EXPAND | wx.ALL, 5)
-        row2.Add(mm_label, 0, wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
+        row2.Add(track_width_label, 0, wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
 
         sizer.Add(row1, 0, wx.EXPAND | wx.ALL, 5)
         sizer.Add(row2, 0, wx.EXPAND | wx.ALL, 5)

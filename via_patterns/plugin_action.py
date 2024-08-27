@@ -7,7 +7,7 @@ from typing import Optional, cast
 import pcbnew
 import wx
 
-from .dialog import MainDialog
+from .dialog import MainDialog, WindowState
 from .via_patterns import add_via_pattern
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,19 @@ class PluginAction(pcbnew.ActionPlugin):
             msg = "No via selected"
             raise Exception(msg)
 
-        dlg = MainDialog(pcb_frame)
+        iu_scale = pcbnew.EDA_IU_SCALE(pcbnew.PCB_IU_PER_MM)
+        user_units = pcbnew.GetUserUnits()
+        units_label: str = pcbnew.GetLabel(user_units)
+
+        default_netclass = board.GetAllNetClasses()["Default"]
+        track_width = default_netclass.GetTrackWidth()
+
+        state = WindowState(
+            track_width=pcbnew.StringFromValue(iu_scale, user_units, track_width),
+            units_label=units_label,
+        )
+
+        dlg = MainDialog(pcb_frame, state)
         if dlg.ShowModal() == wx.ID_OK:
             add_via_pattern(
                 board,
@@ -72,7 +84,10 @@ class PluginAction(pcbnew.ActionPlugin):
                 dlg.get_pattern_type(),
                 select=True,
                 via=selected_via,
-                track_width=cast(int, pcbnew.FromMM(float(dlg.get_track_width()))),
+                track_width=cast(
+                    int,
+                    pcbnew.ValueFromString(iu_scale, user_units, dlg.get_track_width()),
+                ),
             )
 
         dlg.Destroy()
