@@ -37,6 +37,7 @@ def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
     via.SetDrill(pcbnew.FromMM(0.3))
     via.SetTopLayer(pcbnew.F_Cu)
     via.SetBottomLayer(pcbnew.B_Cu)
+    via.SetNetCode(0)
     return via
 
 
