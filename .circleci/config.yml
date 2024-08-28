@@ -135,6 +135,41 @@ jobs:
                 name: Deploy repository to github pages
                 command: |
                   ./release/deploy.sh
+  create-pypi-package:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            pip install hatch==1.7.0
+      - run:
+          name: Create distribution archive
+          command: |
+            python -m hatch -v build -t sdist
+      - store_artifacts:
+          path: dist
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist/kicad_via_patterns*.tar.gz
+  validate-pypi-package:
+    parameters:
+      version:
+        type: string
+    docker:
+      - image: admwscki/kicad-kbplacer-primary:<<parameters.version>>
+    environment:
+      PIP_ROOT_USER_ACTION: ignore
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Sanity check pypi package
+          command: |
+            pip3 install /tmp/dist/kicad_via_patterns*.tar.gz
+            python3 -c 'import via_patterns; print(via_patterns.__version__)'
   create-github-release:
     docker:
       - image: cimg/base:2023.12
@@ -167,7 +202,7 @@ workflows:
   main:
     jobs:
       - test-linux:
-          matrix:
+          matrix: &linux-matrix
             parameters:
               version:
                 - 7.0.11-focal
@@ -187,6 +222,12 @@ workflows:
           requires: &required-tests
             - test-linux
             - test-windows
+      - create-pypi-package:
+          requires: *required-tests
+      - validate-pypi-package:
+          requires:
+            - create-pypi-package
+          matrix: *linux-matrix
   kicad-release:
     jobs:
       - create-pcm-package:
@@ -195,7 +236,10 @@ workflows:
               only: /^v[0-9]+(\.[0-9]+)*$/
             branches:
               ignore: /.*/
+      - create-pypi-package:
+          filters: *tag-filter
       - create-github-release:
           filters: *tag-filter
           requires:
             - create-pcm-package
+            - create-pypi-package

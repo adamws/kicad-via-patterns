@@ -10,7 +10,7 @@ from typing import List, Union, cast
 import pcbnew
 import pytest
 
-from via_patterns.via_patterns import (
+from via_patterns import (
     Pattern,
     add_via_pattern,
 )

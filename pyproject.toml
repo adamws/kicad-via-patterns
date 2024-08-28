@@ -31,6 +31,14 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "via_patterns/_version.py"
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "via_patterns/*.py",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["via_patterns"]
+
 [tool.hatch.build.targets.kicad-package]
 name = "Via Patterns"
 description = "Add vias using various patterns"

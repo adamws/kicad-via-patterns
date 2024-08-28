@@ -1,4 +1,17 @@
 import inspect
+import logging
+from logging import NullHandler
+
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "not-found"
+
+__license__ = "MIT"
+__version__ = __version__
+
+logging.getLogger(__name__).addHandler(NullHandler())
+del NullHandler
 
 
 def __is_in_call_stack(function_name: str, module_name: str) -> bool:
@@ -17,3 +30,5 @@ if __is_in_call_stack("LoadPluginModule", "pcbnew"):
     from .plugin_action import PluginAction
 
     PluginAction().register()
+else:
+    from .via_patterns import Pattern, add_via_pattern
