@@ -9,7 +9,7 @@ import pcbnew
 import wx
 
 from .dialog import MainDialog, WindowState
-from .via_patterns import add_via_pattern
+from .via_patterns import add_via_pattern, get_netclass
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,11 @@ class PluginAction(pcbnew.ActionPlugin):
         user_units = pcbnew.GetUserUnits()
         units_label: str = pcbnew.GetLabel(user_units)
 
-        default_netclass = board.GetAllNetClasses()["Default"]
-        track_width = default_netclass.GetTrackWidth()
+        via_netclass = get_netclass(board, selected_via)
+        track_width = via_netclass.GetTrackWidth()
+        logger.debug(
+            f"via_netclass: {via_netclass.GetName()} track_width: {track_width}"
+        )
 
         state = WindowState(
             track_width=pcbnew.StringFromValue(iu_scale, user_units, track_width),

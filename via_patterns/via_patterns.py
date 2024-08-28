@@ -40,6 +40,16 @@ def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
     return via
 
 
+def get_netclass(
+    board: pcbnew.BOARD, item: pcbnew.BOARD_CONNECTED_ITEM
+) -> pcbnew.NETCLASS:
+    # workaround, see https://gitlab.com/kicad/code/kicad/-/issues/18609
+    netclass_name = item.GetNetClassName()
+    if netclass_name == "Default":
+        return board.GetAllNetClasses()[netclass_name]
+    return board.GetNetClasses()[netclass_name]
+
+
 def add_via_pattern(
     board: pcbnew.BOARD,
     count: int,
@@ -92,11 +102,11 @@ def add_via_pattern(
 
     logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
     if track_width == 0:
-        default_netclass = board.GetAllNetClasses()["Default"]
-        track_width = default_netclass.GetTrackWidth()
+        via_netclass = get_netclass(board, _via)
+        track_width = via_netclass.GetTrackWidth()
         logger.debug(
-            "The `track_width` argument not specified, using default "
-            f"netclass value: {track_width}"
+            "The `track_width` argument not specified, using via's "
+            f"netclass ({via_netclass.GetName()}) value: {track_width}"
         )
     logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
