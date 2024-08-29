@@ -190,7 +190,7 @@ jobs:
       - run:
           name: Upload artifacts to release
           command: |
-            NAME=via-patterns-$(echo $CIRCLE_TAG | cut -c 2-)
+            NAME=kicad_via_patterns-$(echo $CIRCLE_TAG | cut -c 2-)
             gh release upload $CIRCLE_TAG \
               /tmp/dist/$NAME.tar.gz \
               /tmp/dist/repository/$NAME.zip \
