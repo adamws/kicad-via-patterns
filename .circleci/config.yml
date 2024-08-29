@@ -104,8 +104,8 @@ jobs:
               echo "Building development package"
             else
               echo "Building release package"
-              echo "export VIA_PATTERNS_KICAD_STATUS=stable" >> $BASH_ENV
-              echo "export VIA_PATTERNS_KICAD_RELEASE_URL=https://github.com/adamws/kicad-via-patterns/releases/download/v{version}/{zip_name}" >> $BASH_ENV
+              echo "export PLUGIN_KICAD_STATUS=stable" >> $BASH_ENV
+              echo "export PLUGIN_KICAD_RELEASE_URL=https://github.com/adamws/kicad-via-patterns/releases/download/v{version}/{zip_name}" >> $BASH_ENV
             fi
       - run:
           name: Install dependencies
