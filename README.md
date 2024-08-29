@@ -3,7 +3,7 @@
 |         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---     | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | CI/CD   | [![CircleCI](https://circleci.com/gh/adamws/kicad-via-patterns.svg?style=shield)](https://circleci.com/gh/adamws/kicad-via-patterns/tree/master) [![Coverage Status](https://coveralls.io/repos/github/adamws/kicad-via-patterns/badge.svg)](https://coveralls.io/github/adamws/kicad-via-patterns)
-| Package | ![KiCad v7](https://img.shields.io/badge/kicad-v7-green) ![KiCad v8](https://img.shields.io/badge/kicad-v8-green) [![PyPI - Version](https://img.shields.io/pypi/v/kicad-via-patterns.svg)](https://pypi.org/project/kicad-via-patterns)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Package | [![KiCad Repository](https://img.shields.io/badge/KiCad-Plugin%20Repository-blue)](https://gitlab.com/kicad/addons/metadata/-/tree/main/packages/com.github.adamws.kicad-via-patterns) ![KiCad v7](https://img.shields.io/badge/kicad-v7-green) ![KiCad v8](https://img.shields.io/badge/kicad-v8-green) [![PyPI - Version](https://img.shields.io/pypi/v/kicad-via-patterns.svg)](https://pypi.org/project/kicad-via-patterns)                                                                                                                                                                                    |
 | Meta    | [![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch) [![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![code style - Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![types - Mypy](https://img.shields.io/badge/types-Mypy-blue.svg)](https://github.com/python/mypy) [![License - MIT](https://img.shields.io/badge/license-MIT-9400d3.svg)](https://spdx.org/licenses/) |
 
 -----
@@ -36,13 +36,15 @@ Following table shows images of supported patterns with clearance outlines enabl
 
 ## Installation
 
-> [!WARNING]
-> This plugin is not yet available in official KiCad's plugin repository
+To install release version of this plugin, use KiCad's `Plugin and Content Manager`
+and select `Via Patterns` from official plugin repository.
 
-To install development version, you must first open KiCad's plugin manager and
-add `https://adamws.github.io/kicad-via-patterns/repository.json` to repository list.
-Then you can use it to install plugin as normally.
-Custom repository is automatically updated with latest `master` branch builds.
+![pcm-image](resources/pcm.png)
+
+Latest `master` build is automatically uploaded to unofficial PCM compatible
+[repository](https://adamws.github.io/kicad-via-patterns/) hosted on GitHub pages.
+To use it, add `https://adamws.github.io/kicad-via-patterns/repository.json`
+to PCM repository list.
 
 ## How to use
 
