@@ -8,6 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kicad-via-patterns"
+description = "KiCad plugin for via placement"
 keywords = ["kicad", "via"]
 requires-python = ">=3.8"
 license = {text = "MIT"}
