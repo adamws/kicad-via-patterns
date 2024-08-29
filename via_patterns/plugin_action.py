@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Optional, cast
+from typing import List, cast
 
 import pcbnew
 import wx
@@ -39,6 +39,11 @@ def get_kicad_version() -> str:
     return version
 
 
+def get_selected_board_items() -> List[pcbnew.BOARD_ITEM]:
+    selection: pcbnew.DRAWINGS = pcbnew.GetCurrentSelection()
+    return [item.Cast() for item in selection]
+
+
 class PluginAction(pcbnew.ActionPlugin):
     def defaults(self) -> None:
         self.name = "Via Patterns"
@@ -59,20 +64,21 @@ class PluginAction(pcbnew.ActionPlugin):
 
         board = pcbnew.GetBoard()
 
-        selection: pcbnew.DRAWINGS = pcbnew.GetCurrentSelection()
-        selected_via: Optional[pcbnew.PCB_VIA] = None
-        if len(selection) == 1:
-            selected_via = next(
-                (f.Cast() for f in selection if isinstance(f.Cast(), pcbnew.PCB_VIA)),
-                None,
+        selected_items = get_selected_board_items()
+        selected_vias = list(
+            filter(lambda i: isinstance(i, pcbnew.PCB_VIA), selected_items)
+        )
+
+        if len(selected_vias) != 1:
+            msg = (
+                "Plugin must be run with selection containing exectly one via. "
+                f"Current selection contains {len(selected_items)} items "
+                f"and {len(selected_vias)} vias. "
+                "Please re-run plugin with proper selection."
             )
-        else:
-            msg = f"Must select single via element, selected {len(selection)} elements"
             raise Exception(msg)
 
-        if not selected_via:
-            msg = "No via selected"
-            raise Exception(msg)
+        selected_via = pcbnew.Cast_to_PCB_VIA(selected_vias[0])
 
         iu_scale = pcbnew.EDA_IU_SCALE(pcbnew.PCB_IU_PER_MM)
         user_units = pcbnew.GetUserUnits()
