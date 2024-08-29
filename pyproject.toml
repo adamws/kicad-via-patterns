@@ -47,7 +47,7 @@ description_full = [
 ]
 identifier = "com.github.adamws.kicad-via-patterns"
 author = { name = "adamws", web="https://adamws.github.io" }
-status = "development"
+status = "{env:PLUGIN_KICAD_STATUS:development}"
 kicad_version = "7.0"
 sources = ["via_patterns"]
 include = [
