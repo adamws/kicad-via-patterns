@@ -232,3 +232,16 @@ def test_via_pattern_negative_track_width(work_board) -> None:
             ValueError, match="The `track_width` argument must be greater or equal 0"
         ):
             add_via_pattern(board, 5, Pattern.PERPENDICULAR, track_width=-10)
+
+
+@pytest.mark.parametrize(
+    "params", [("diagonal", Pattern.DIAGONAL), ("StaGGEr", Pattern.STAGGER)]
+)
+def test_pattern_enum_from_string(params) -> None:
+    string, expected = params
+    assert Pattern.get(string) == expected
+
+
+def test_pattern_enum_from_illegal_string() -> None:
+    with pytest.raises(ValueError, match=r"'.*' is not a valid Pattern"):
+        _ = Pattern.get("NO_SUCH_PATTERN")
