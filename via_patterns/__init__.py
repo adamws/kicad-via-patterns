@@ -31,4 +31,4 @@ if __is_in_call_stack("LoadPluginModule", "pcbnew"):
 
     PluginAction().register()
 else:
-    from .via_patterns import Pattern, add_via_pattern
+    from .via_patterns import Direction, Pattern, add_via_pattern

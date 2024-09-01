@@ -11,6 +11,7 @@ import pcbnew
 import pytest
 
 from via_patterns import (
+    Direction,
     Pattern,
     add_via_pattern,
 )
@@ -77,7 +78,10 @@ def work_board(board_path):
             net = _add_net(f"Net{i}")
             # add dummy tracks to avoid orphaned net removal on board save
             t = _add_track(
-                board, pcbnew.VECTOR2I_MM(0, i), pcbnew.VECTOR2I_MM(5, i), pcbnew.F_Cu
+                board,
+                pcbnew.VECTOR2I_MM(0, i + 10),
+                pcbnew.VECTOR2I_MM(5, i + 10),
+                pcbnew.F_Cu,
             )
             t.SetNet(net)
 
@@ -138,8 +142,9 @@ def assert_drc(tmpdir, board_path: Union[str, os.PathLike], log: bool = True) ->
 )
 @pytest.mark.parametrize("via", [None, (0.8, 0.4)])
 @pytest.mark.parametrize("track_width", [0, 0.65])  # 0 means deafult (0.2)
+@pytest.mark.parametrize("direction", [Direction.HORIZONTAL, Direction.VERTICAL])
 def test_via_pattern(
-    number_of_vias, pattern, via, track_width, board_path, work_board, tmpdir
+    number_of_vias, pattern, via, track_width, direction, board_path, work_board, tmpdir
 ) -> None:
     net = "Net1"
     track_width = cast(int, pcbnew.FromMM(track_width))
@@ -153,6 +158,7 @@ def test_via_pattern(
             via=via,
             net=net,
             track_width=track_width,
+            direction=direction,
         )
         assert len(vias) == number_of_vias
         assert_via_nets(vias, net)
@@ -163,7 +169,10 @@ def test_via_pattern(
     board_with_tracks = pcbnew.LoadBoard(board_path)
 
     items = board_with_tracks.AllConnectedItems()
-    items = sorted(items, key=lambda i: [i.GetX(), i.GetY()])
+    if direction == Direction.HORIZONTAL:
+        items = sorted(items, key=lambda i: [i.GetX(), i.GetY()])
+    else:
+        items = sorted(items, key=lambda i: [i.GetY(), i.GetX()])
     for item in items:
         if item.Type() != pcbnew.PCB_VIA_T:
             # remove temporary tracks
@@ -172,16 +181,23 @@ def test_via_pattern(
             vias.append(item)
 
     assert len(vias) == number_of_vias
+    track_directions = {
+        Direction.HORIZONTAL: [(0, 1), (0, -1)],
+        Direction.VERTICAL: [(1, 0), (-1, 0)],
+    }
     for i, v in enumerate(vias):
         start = v.GetPosition()
         netname = f"Net{i+1}"
         logger.debug(f"Setting net: {netname}")
         v.SetNet(board.FindNet(netname))
-        for layer, direction in [(pcbnew.F_Cu, 1), (pcbnew.B_Cu, -1)]:
+        for layer, directions in [
+            (pcbnew.F_Cu, track_directions[direction][0]),
+            (pcbnew.B_Cu, track_directions[direction][1]),
+        ]:
             _add_track(
                 board_with_tracks,
                 start,
-                start + pcbnew.VECTOR2I_MM(0, direction),
+                start + pcbnew.VECTOR2I_MM(*directions),
                 layer,
                 width=track_width if track_width else 200000,
             )
@@ -194,12 +210,14 @@ def test_via_pattern(
         # see https://gitlab.com/kicad/code/kicad/-/issues/17504
         assert_drc(tmpdir, board_with_tracks_path)
 
-    if KICAD_VERSION >= (8, 0, 0):
         # to check if pattern is efficient, move second via (with tracks) towards
         # first one by some predefined step to see if DRC clearance violation starts to be detected
         board_with_vias_moved = pcbnew.LoadBoard(board_with_tracks_path)
         for t in board_with_vias_moved.TracksInNet(2):
-            t.Move(pcbnew.VECTOR2I_MM(-0.001, 0))
+            if direction == Direction.HORIZONTAL:
+                t.Move(pcbnew.VECTOR2I_MM(-0.001, 0))
+            else:
+                t.Move(pcbnew.VECTOR2I_MM(0, -0.001))
         board_with_vias_moved_path = Path(board_path).with_name("test2.kicad_pcb")
         board_with_vias_moved.Save(board_with_vias_moved_path)
         with pytest.raises(AssertionError):
@@ -216,6 +234,12 @@ def test_via_pattern_unsupported_pattern_type(work_board) -> None:
     with work_board() as board:
         with pytest.raises(ValueError, match="Unsupported pattern"):
             add_via_pattern(board, 5, "SOME_PATTERN")
+
+
+def test_via_pattern_unsupported_direction(work_board) -> None:
+    with work_board() as board:
+        with pytest.raises(ValueError, match="Unsupported direction"):
+            add_via_pattern(board, 5, Pattern.DIAGONAL, direction="NO_SUCH_DIRECTION")  # type: ignore
 
 
 def test_via_pattern_negative_extra_space(work_board) -> None:

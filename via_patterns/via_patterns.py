@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from enum import Enum
+from enum import Enum, auto
 from typing import List, Optional, Union
 
 import pcbnew
@@ -28,6 +28,11 @@ class Pattern(str, Enum):
                 pass
         msg = f"'{name}' is not a valid Pattern"
         raise ValueError(msg)
+
+
+class Direction(int, Enum):
+    HORIZONTAL = auto()
+    VERTICAL = auto()
 
 
 def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
@@ -58,6 +63,7 @@ def add_via_pattern(
     *,
     via: Optional[pcbnew.PCB_VIA] = None,
     start_position: pcbnew.VECTOR2I = ZERO_POSITION,
+    direction: Direction = Direction.HORIZONTAL,
     net: Union[str, int] = 0,
     track_width: int = 0,
     extra_space: int = 0,
@@ -67,6 +73,10 @@ def add_via_pattern(
 
     if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER]:
         msg = "Unsupported pattern"
+        raise ValueError(msg)
+
+    if direction not in [Direction.HORIZONTAL, Direction.VERTICAL]:
+        msg = "Unsupported direction"
         raise ValueError(msg)
 
     if track_width < 0:
@@ -126,6 +136,7 @@ def add_via_pattern(
 
     if pattern == Pattern.PERPENDICULAR:
         offset_x = via_clearance + max(via_width, track_width) + extra_space
+        offset_y = 0
     elif pattern == Pattern.DIAGONAL:
         if track_width > 2 * int(
             ((via_width + via_clearance) / SQRT2) - via_clearance - via_width / 2
@@ -152,17 +163,21 @@ def add_via_pattern(
             )
         )
 
-    logger.debug(f"offsets: x: {offset_x} y: {offset_y}")
-
     # used for STAGGER pattern:
     zigzag = [(0.5, 1), (0.5, -1)]
+
+    if direction == Direction.VERTICAL:
+        offset_x, offset_y = offset_y, offset_x
+        zigzag = [(1, 0.5), (-1, 0.5)]
+
+    logger.debug(f"offsets: x: {offset_x} y: {offset_y}")
 
     for i in range(0, count - 1):
         v = _via.Duplicate()
         assert v, "Failed to duplicate via item"
         v.SetNetCode(0)
         if pattern == Pattern.PERPENDICULAR:
-            move += pcbnew.VECTOR2I(offset_x, 0)
+            move += pcbnew.VECTOR2I(offset_x, offset_y)
         elif pattern == Pattern.DIAGONAL:
             move += pcbnew.VECTOR2I(offset_x, offset_y)
         else:  # Pattern.STAGGER
