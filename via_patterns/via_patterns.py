@@ -114,14 +114,22 @@ def add_via_pattern(
     via_width = _via.GetWidth()
     via_clearance = _via.GetOwnClearance(_via.GetLayer())
 
-    logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
-    if track_width == 0:
+    if track_width == 0 or via_clearance == 0:
         via_netclass = get_netclass(board, _via)
-        track_width = via_netclass.GetTrackWidth()
-        logger.debug(
-            "The `track_width` argument not specified, using via's "
-            f"netclass ({via_netclass.GetName()}) value: {track_width}"
-        )
+        if track_width == 0:
+            track_width = via_netclass.GetTrackWidth()
+            logger.debug(
+                "The `track_width` argument not specified, using via's "
+                f"netclass ({via_netclass.GetName()}) value: {track_width}"
+            )
+        if via_clearance == 0:
+            via_clearance = via_netclass.GetClearance()
+            logger.debug(
+                "The `via_clearance` not specified, using via's "
+                f"netclass ({via_netclass.GetName()}) value: {via_clearance}"
+            )
+
+    logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
     logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
     logger.debug(f"netclass: {_via.GetNetClassName()}")
