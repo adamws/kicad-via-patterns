@@ -176,6 +176,7 @@ def add_via_pattern(
         v = _via.Duplicate()
         assert v, "Failed to duplicate via item"
         v.SetNetCode(0)
+        v.SetIsFree(True)
         if pattern == Pattern.PERPENDICULAR:
             move += pcbnew.VECTOR2I(offset_x, offset_y)
         elif pattern == Pattern.DIAGONAL:
