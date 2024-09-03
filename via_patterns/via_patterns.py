@@ -51,9 +51,12 @@ def get_netclass(
 ) -> pcbnew.NETCLASS:
     # workaround, see https://gitlab.com/kicad/code/kicad/-/issues/18609
     netclass_name = item.GetNetClassName()
-    if netclass_name == "Default":
-        return board.GetAllNetClasses()[netclass_name]
-    return board.GetNetClasses()[netclass_name]
+    try:
+        return board.GetNetClasses()[netclass_name]
+    except IndexError:
+        # may happen when via has no net assigned yet or netclass is
+        # equal "Default" (which is not a part of GetNetClasses collection)
+        return board.GetAllNetClasses()["Default"]
 
 
 def add_via_pattern(
