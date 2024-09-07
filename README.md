@@ -62,6 +62,8 @@ to PCM repository list.
     - Pattern elements will be automatically selected to ease reposition or rotation/flip.
 5. Update nets of created vias and continue routing.
 
+[demo.webm](https://github.com/user-attachments/assets/3db7aafe-54ec-4376-807e-85c99819e8ab)
+
 ## License
 
 This project is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
