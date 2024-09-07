@@ -35,6 +35,11 @@ class Direction(int, Enum):
     VERTICAL = auto()
 
 
+class RotateDirection(int, Enum):
+    CLOCKWISE = 1
+    COUNTERCLOCKWISE = -1
+
+
 def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
     via = pcbnew.PCB_VIA(board)
     via.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -204,3 +209,26 @@ def add_via_pattern(
         vias.append(v)
 
     return vias
+
+
+def rotate_via_pattern(
+    vias: List[pcbnew.PCB_VIA],
+    direction: RotateDirection,
+    *,
+    reference_index: int = 0,
+) -> None:
+    if direction not in [RotateDirection.CLOCKWISE, RotateDirection.COUNTERCLOCKWISE]:
+        msg = "Unsupported direction"
+        raise ValueError(msg)
+
+    if reference_index > len(vias) - 1:
+        msg = "The `reference_index` argument is out of range"
+        raise ValueError(msg)
+
+    reference_position = vias[reference_index].GetPosition()
+    for i, via in enumerate(vias):
+        if i == reference_index:
+            continue
+        via.Rotate(
+            reference_position, pcbnew.EDA_ANGLE(direction * -90, pcbnew.DEGREES_T)
+        )

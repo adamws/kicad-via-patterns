@@ -8,8 +8,13 @@ from typing import List, cast
 import pcbnew
 import wx
 
-from .dialog import MainDialog, WindowState
-from .via_patterns import add_via_pattern, get_netclass
+from .dialog import MainDialog, RotateDialog, WindowState
+from .via_patterns import (
+    RotateDirection,
+    add_via_pattern,
+    get_netclass,
+    rotate_via_pattern,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +100,10 @@ class PluginAction(pcbnew.ActionPlugin):
             units_label=units_label,
         )
 
+        added_vias = None
         dlg = MainDialog(self.window, state)
         if dlg.ShowModal() == wx.ID_OK:
-            add_via_pattern(
+            added_vias = add_via_pattern(
                 board,
                 dlg.get_number_of_vias(),
                 dlg.get_pattern_type(),
@@ -110,4 +116,16 @@ class PluginAction(pcbnew.ActionPlugin):
             )
 
         dlg.Destroy()
+
+        if added_vias:
+            pcbnew.Refresh()
+
+            def rotate_callback(_, direction: RotateDirection) -> None:
+                rotate_via_pattern(added_vias, direction)
+                pcbnew.Refresh()
+
+            dlg = RotateDialog(self.window, rotate_callback)
+            dlg.ShowModal()
+            dlg.Destroy()
+
         logging.shutdown()

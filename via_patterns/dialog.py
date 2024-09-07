@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from typing import List
 
 import wx
+from wx.lib.embeddedimage import PyEmbeddedImage
 
-from .via_patterns import Pattern
+from .via_patterns import Pattern, RotateDirection
 
 TEXT_CTRL_EXTRA_SPACE = 25
 
@@ -249,6 +250,65 @@ class MainDialog(wx.Dialog):
 
     def get_track_width(self) -> str:
         return self.__track_width.GetValue()
+
+
+class RotateDialog(wx.Dialog):
+    def __init__(self: RotateDialog, parent: wx.Frame, rotate_callback) -> None:
+        super().__init__(parent, -1, "Adjust rotation")
+
+        label = wx.StaticText(
+            self, -1, "Rotate:"
+        )
+        # bitmaps obtained with img2py, using KiCad's undo/redo buttons
+        rot_left_bitmap = PyEmbeddedImage(
+            b"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAQAAADZc7J/AAAB8klEQVRIx2NgAIJQiZDbIbdD"
+            b"JRjIBSFBIf9D/oeGkG9AKNiAcIRIgECoQahTiH+weZAkAyNJBgTJhDSFnAz5AxKBwtfBc4K9"
+            b"GpiIMCBSPGRqyA8krcjwfKgrAQNC6kOegel/ocdD6kM9goyCVUNsQ+JCFoe8gxoy15MdnwEQ"
+            b"Z28MMkKX92QPLgx5A5Y9HCiM24D/IV+D43G5MlIkZD9Yzf40VgzJ0BCQVPC/4LOhRaGKuIxI"
+            b"Yw1ZDjZiCoZUhCzcl6DAPBtSE6yNzYgEDmD8AMMo2BzTDaLBGSG7Qn4hjAmeg82IUBWwml04"
+            b"HBklGBIXuj7kG9iAO9jVBM8Ey2rgSRWx3KEhwROCrLHLBuqDXVhCdrJnYAx5iscTROWczUAD"
+            b"blBgQPB8oAHvKHHBXFCSo8SAPUADrpOtvYEp5Dkwse0g335bcDSWkR+Ei8CJWYlM7UGmIX+B"
+            b"BuwlU3uAQMhVULkRaoAtm1SH7A81w6c9lDNkL9j/k7AHzieg1I+QRJx+Vw29AM7su7EUKGAF"
+            b"MdDidA9mbgeWRm0hn8Haj4fy444gq5AX0NLgakhnSHSIbahlsC+wNNwGyeDATDwtlA1vIIUK"
+            b"hXSHfMdRrJ8OcSMuomRCS0OOgiMLBp+FzA72IqJ+QnELT6hWsHuoX6hZqDSJWukOAGS+H1zu"
+            b"ajCnAAAAAElFTkSuQmCC"
+        ).GetBitmap()
+        rot_left_button = wx.BitmapButton(self, bitmap=rot_left_bitmap)
+        rot_left_button.Bind(
+            wx.EVT_BUTTON,
+            lambda event: rotate_callback(event, RotateDirection.COUNTERCLOCKWISE),
+        )
+
+        rot_right_bitmap = PyEmbeddedImage(
+            b"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAQAAADZc7J/AAAB4UlEQVRIx2NgIANEiofcCL4W"
+            b"KspALggNCfkPhEGEVTIGSQabh/iHOoUaBAggGRAONiAUj84GplDvkLkhr8EKIfBPyMngxiAZ"
+            b"ogwIdg+9gKQVGf4ImRIpjtcAT/aQBVDF74IXhcSF2AarBhmFeoQ0hB4P+QcWfxpah9OAQOGQ"
+            b"o2DJ1yEFoWzoskFGIRuh3sFuQBpr6EGw1P5AYZzeiw/5CnUhpgEh08ESy9NYcWmPUAguDDkT"
+            b"DPZKaAi6A03BfjwTyok17rVCq0PPIgXnuwhZdPv3gkI5SB6bdmCUIrT+CtkVnBEohu43bbBk"
+            b"Pw6f3wfLfgvZEBIXKoRVSUgZSEmwKnYDQmxDJoaGxHLjSXtgD9xiIB+E3AIasIwSAz4APTCB"
+            b"EgNAyaOPEgNuAA1YRYkBu4AGXKfEgCpQNIZrkm1AsCo4qVAUCgeABvwMVSG/qDQO+QvMY0cS"
+            b"OMj3xjSwN1Y5sOC1yAzo1irsUmzgBP0/5ECQJJ4C5TtQxXsc0gECISfARrwKKcHMOkBP7oQW"
+            b"rdE4HejJHjwTmu/fhiwPTQ5xCNUNMg0OCGkOOQ8Vfx5qSSg+PFHKHmT4PbgrSpCY8GQM9Q6e"
+            b"E/IcSevfkKOhpZCKhWgArJ+kQ81C/ULcQrXwFiYDCgCpIh3sXAryzgAAAABJRU5ErkJggg=="
+        ).GetBitmap()
+        rot_right_button = wx.BitmapButton(self, bitmap=rot_right_bitmap)
+        rot_right_button.Bind(
+            wx.EVT_BUTTON,
+            lambda event: rotate_callback(event, RotateDirection.CLOCKWISE),
+        )
+
+        buttons = self.CreateButtonSizer(wx.CLOSE)
+
+        row1 = wx.BoxSizer(wx.HORIZONTAL)
+        row1.Add(label, 0, wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
+        row1.Add(rot_left_button, 0, wx.EXPAND | wx.ALL, 5)
+        row1.Add(rot_right_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        box = wx.BoxSizer(wx.VERTICAL)
+        box.Add(row1, 0, wx.EXPAND | wx.ALL, 5)
+        box.Add(buttons, 0, wx.EXPAND | wx.ALL, 5)
+
+        self.SetSizerAndFit(box)
 
 
 # used for tests
