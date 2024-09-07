@@ -54,10 +54,13 @@ to PCM repository list.
     ![gui](resources/gui.png)
 
    Select pattern type and size. Set track width. Click OK.
+3. Adjust pattern orientation with rotation buttons in new pop-up dialog.
 
-3. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties except net).
+    ![gui-rotate](resources/gui-rotate.png)
+
+4. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties except net).
     - Pattern elements will be automatically selected to ease reposition or rotation/flip.
-4. Update nets of created vias and continue routing.
+5. Update nets of created vias and continue routing.
 
 ## License
 
