@@ -62,6 +62,10 @@ to PCM repository list.
     - Pattern elements will be automatically selected to ease reposition or rotation/flip.
 5. Update nets of created vias and continue routing.
 
+> [!WARNING]
+> For KiCad 9 users:
+> This plugin has been tested only with 'Through' via type with 'Normal' padstack mode.
+
 [demo.webm](https://github.com/user-attachments/assets/3db7aafe-54ec-4376-807e-85c99819e8ab)
 
 ## License

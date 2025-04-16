@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from enum import Enum, auto
 from typing import List, Optional, Union
 
@@ -11,6 +12,10 @@ logger = logging.getLogger(__name__)
 ZERO_POSITION = pcbnew.VECTOR2I(0, 0)
 SQRT2 = math.sqrt(2)
 SQRT3 = math.sqrt(3)
+version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", pcbnew.Version())
+KICAD_VERSION = tuple(map(int, version_match.groups())) if version_match else ()
+if KICAD_VERSION == ():
+    logger.warning("Could not determine KiCad version")
 
 
 class Pattern(str, Enum):
@@ -43,10 +48,13 @@ class RotateDirection(int, Enum):
 def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
     via = pcbnew.PCB_VIA(board)
     via.SetViaType(pcbnew.VIATYPE_THROUGH)
-    via.SetWidth(pcbnew.FromMM(0.6))
     via.SetDrill(pcbnew.FromMM(0.3))
     via.SetTopLayer(pcbnew.F_Cu)
     via.SetBottomLayer(pcbnew.B_Cu)
+    if KICAD_VERSION >= (9, 0, 0):
+        via.SetWidth(pcbnew.F_Cu, pcbnew.FromMM(0.6))
+    else:
+        via.SetWidth(pcbnew.FromMM(0.6))
     via.SetNetCode(0)
     return via
 
@@ -116,7 +124,10 @@ def add_via_pattern(
 
     vias.append(_via)
 
-    via_width = _via.GetWidth()
+    if KICAD_VERSION >= (9, 0, 0):
+        via_width = _via.GetWidth(_via.TopLayer())
+    else:
+        via_width = _via.GetWidth()
     via_clearance = _via.GetOwnClearance(_via.GetLayer())
 
     if track_width == 0 or via_clearance == 0:

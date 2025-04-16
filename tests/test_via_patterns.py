@@ -43,10 +43,13 @@ def _add_via(
     via = pcbnew.PCB_VIA(board)
     via.SetViaType(pcbnew.VIATYPE_THROUGH)
     via.SetStart(position)
-    via.SetWidth(pcbnew.FromMM(width))
     via.SetDrill(pcbnew.FromMM(drill))
     via.SetTopLayer(pcbnew.F_Cu)
     via.SetBottomLayer(pcbnew.B_Cu)
+    if KICAD_VERSION >= (9, 0, 0):
+        via.SetWidth(pcbnew.F_Cu, pcbnew.FromMM(width))
+    else:
+        via.SetWidth(pcbnew.FromMM(width))
     board.Add(via)
     via.SetNet(board.FindNet(netname))
     return via
