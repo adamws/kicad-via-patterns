@@ -134,7 +134,8 @@ def generate_render(
     plot_options.SetNegative(False)
     plot_options.SetPlotReference(True)
     plot_options.SetPlotValue(True)
-    plot_options.SetPlotInvisibleText(False)
+    if KICAD_VERSION < (9, 0, 1):
+        plot_options.SetPlotInvisibleText(False)
     plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
     plot_options.SetSvgPrecision(aPrecision=1)
 
