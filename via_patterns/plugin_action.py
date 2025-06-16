@@ -5,8 +5,10 @@ import os
 import sys
 from typing import List, cast
 
-import pcbnew
+import kipy
 import wx
+from kipy.board_types import Via
+from kipy.kicad import KiCadVersion
 
 from .dialog import MainDialog, RotateDialog, WindowState
 from .via_patterns import (
@@ -34,44 +36,30 @@ def setup_logging(destination: str) -> None:
     )
 
 
-def get_kicad_version() -> str:
-    version = pcbnew.Version()
-    if int(version.split(".")[0]) < 7:
-        msg = f"KiCad version {version} is not supported"
-        raise Exception(msg)
-    logger.info(f"Plugin executed with KiCad version: {version}")
-    logger.info(f"Plugin executed with python version: {repr(sys.version)}")
-    return version
-
-
-def get_selected_board_items() -> List[pcbnew.BOARD_ITEM]:
-    selection: pcbnew.DRAWINGS = pcbnew.GetCurrentSelection()
-    return [item.Cast() for item in selection]
-
-
-class PluginAction(pcbnew.ActionPlugin):
-    def defaults(self) -> None:
-        self.name = "Via Patterns"
-        self.category = "Modify PCB"
-        self.description = "Add vias using various patterns"
-        self.show_toolbar_button = True
-        self.icon_file_name = os.path.join(os.path.dirname(__file__), "icon.png")
-
-    def Initialize(self) -> None:
+class PluginAction():
+    def initialize(self) -> None:
         self.window = wx.GetActiveWindow()
         self.plugin_path = os.path.dirname(__file__)
         setup_logging(self.plugin_path)
 
-        _ = get_kicad_version()
+        self.kicad = kipy.KiCad()
 
-    def Run(self) -> None:
-        self.Initialize()
+    def get_kicad_version(self) -> KiCadVersion:
+        version = self.kicad.get_version()
+        logger.info(f"Plugin executed with KiCad version: {version}")
+        logger.info(f"Plugin executed with python version: {repr(sys.version)}")
+        return version
 
-        board = pcbnew.GetBoard()
+    def run(self) -> None:
+        self.initialize()
 
-        selected_items = get_selected_board_items()
+        _ = self.get_kicad_version()
+        board = self.kicad.get_board()
+
+        selected_items = board.get_selection()
+
         selected_vias = list(
-            filter(lambda i: isinstance(i, pcbnew.PCB_VIA), selected_items)
+            filter(lambda i: isinstance(i, Via), selected_items)
         )
 
         if len(selected_vias) != 1:
@@ -83,21 +71,23 @@ class PluginAction(pcbnew.ActionPlugin):
             )
             raise Exception(msg)
 
-        selected_via = pcbnew.Cast_to_PCB_VIA(selected_vias[0])
-
-        iu_scale = pcbnew.EDA_IU_SCALE(pcbnew.PCB_IU_PER_MM)
-        user_units = pcbnew.GetUserUnits()
-        units_label: str = pcbnew.GetLabel(user_units)
+        selected_via = cast(Via, selected_vias[0])
 
         via_netclass = get_netclass(board, selected_via)
-        track_width = via_netclass.GetTrackWidth()
+        track_width = via_netclass.track_width
         logger.debug(
-            f"via_netclass: {via_netclass.GetName()} track_width: {track_width}"
+            f"via_netclass: '{via_netclass.name}', track_width: {track_width}"
         )
 
+        #iu_scale = pcbnew.EDA_IU_SCALE(pcbnew.PCB_IU_PER_MM)
+        #user_units = pcbnew.GetUserUnits()
+        #units_label: str = pcbnew.GetLabel(user_units)
+        #state = WindowState(
+        #    track_width=pcbnew.StringFromValue(iu_scale, user_units, track_width),
+        #    units_label=units_label,
+        #)
         state = WindowState(
-            track_width=pcbnew.StringFromValue(iu_scale, user_units, track_width),
-            units_label=units_label,
+            track_width="0.4",
         )
 
         added_vias = None
@@ -109,20 +99,21 @@ class PluginAction(pcbnew.ActionPlugin):
                 dlg.get_pattern_type(),
                 select=True,
                 via=selected_via,
-                track_width=cast(
-                    int,
-                    pcbnew.ValueFromString(iu_scale, user_units, dlg.get_track_width()),
-                ),
+                #track_width=cast(
+                #    int,
+                #    pcbnew.ValueFromString(iu_scale, user_units, dlg.get_track_width()),
+                #),
             )
 
+        logger.debug("destroy")
         dlg.Destroy()
 
         if added_vias:
-            pcbnew.Refresh()
+            #pcbnew.Refresh()
 
             def rotate_callback(_, direction: RotateDirection) -> None:
                 rotate_via_pattern(added_vias, direction)
-                pcbnew.Refresh()
+                #pcbnew.Refresh()
 
             dlg = RotateDialog(self.window, rotate_callback)
             dlg.ShowModal()

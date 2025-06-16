@@ -1,13 +1,10 @@
-import logging
-import sys
+import wx
 
-logger = logging.getLogger(__name__)
-
-
-def app():
-    logger.error("This plugin is not usable when running as python module")
-    sys.exit(1)
+from .plugin_action import PluginAction
 
 
 if __name__ == "__main__":
-    app()
+    app = wx.App()
+    plugin = PluginAction()
+    plugin.initialize()
+    plugin.run()

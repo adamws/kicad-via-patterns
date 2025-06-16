@@ -5,10 +5,16 @@ import math
 from enum import Enum, auto
 from typing import List, Optional, Union
 
-import pcbnew
+import kipy
+from kipy.board import Board
+from kipy.board_types import BoardItem, Net, Via
+from kipy.geometry import Angle, Vector2
+from kipy.project_types import NetClass
+from kipy.proto.board.board_types_pb2 import ViaType
+from kipy.util.units import from_mm
 
 logger = logging.getLogger(__name__)
-ZERO_POSITION = pcbnew.VECTOR2I(0, 0)
+ZERO_POSITION = Vector2.from_xy(0, 0)
 SQRT2 = math.sqrt(2)
 SQRT3 = math.sqrt(3)
 
@@ -40,44 +46,37 @@ class RotateDirection(int, Enum):
     COUNTERCLOCKWISE = -1
 
 
-def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
-    via = pcbnew.PCB_VIA(board)
-    via.SetViaType(pcbnew.VIATYPE_THROUGH)
-    via.SetWidth(pcbnew.FromMM(0.6))
-    via.SetDrill(pcbnew.FromMM(0.3))
-    via.SetTopLayer(pcbnew.F_Cu)
-    via.SetBottomLayer(pcbnew.B_Cu)
-    via.SetNetCode(0)
+def _default_via() -> Via:
+    via = Via()
+    via.type = ViaType.VT_THROUGH
+    via.diameter = from_mm(0.6)
+    via.drill_diameter = from_mm(0.3)
+    #via.SetTopLayer(pcbnew.F_Cu)
+    #via.SetBottomLayer(pcbnew.B_Cu)
+    #via.SetNetCode(0)
     return via
 
 
-def get_netclass(
-    board: pcbnew.BOARD, item: pcbnew.BOARD_CONNECTED_ITEM
-) -> pcbnew.NETCLASS:
-    # workaround, see https://gitlab.com/kicad/code/kicad/-/issues/18609
-    netclass_name = item.GetNetClassName()
-    try:
-        return board.GetNetClasses()[netclass_name]
-    except IndexError:
-        # may happen when via has no net assigned yet or netclass is
-        # equal "Default" (which is not a part of GetNetClasses collection)
-        return board.GetAllNetClasses()["Default"]
+def get_netclass(board: Board, item) -> NetClass:
+    netclasses = board.get_netclass_for_nets(item.net)
+    logger.debug(f"{netclasses=}")
+    return netclasses[item.net.name]
 
 
 def add_via_pattern(
-    board: pcbnew.BOARD,
+    board: Board,
     count: int,
     pattern: Union[Pattern, str],
     *,
-    via: Optional[pcbnew.PCB_VIA] = None,
-    start_position: pcbnew.VECTOR2I = ZERO_POSITION,
+    via: Optional[Via] = None,
+    start_position: Vector2 = ZERO_POSITION,
     direction: Direction = Direction.HORIZONTAL,
-    net: Union[str, int] = 0,
+    net: str = "",
     track_width: int = 0,
     extra_space: int = 0,
     select: bool = False,
-) -> List[pcbnew.PCB_VIA]:
-    vias: List[pcbnew.PCB_VIA] = []
+) -> List[Via]:
+    vias: List[Via] = []
 
     if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER]:
         msg = "Unsupported pattern"
@@ -96,27 +95,26 @@ def add_via_pattern(
         raise ValueError(msg)
 
     if not via:
-        _via = _default_via(board)
-        _via.SetStart(start_position)
+        _via = _default_via()
+        _via.position = start_position
         if net:
             if isinstance(net, str) and net != "":
-                nets = board.GetNetsByName()
-                _via.SetNet(nets[net])
-            elif isinstance(net, int) and net != 0:
-                _via.SetNetCode(net)
+                nets = board.get_nets()
+                logger.debug(f"nets: {nets}")
+                #_via.SetNet(nets[net])
             else:
                 msg = "The `net` argument must be str or int"
                 raise TypeError(msg)
-        board.Add(_via)
+        #board.Add(_via)
     else:
         _via = via
-        if via.GetParent().m_Uuid != board.m_Uuid:
-            msg = "The `via` must be element of `board`"
-            raise ValueError(msg)
+        #if via.GetParent().m_Uuid != board.m_Uuid:
+        #    msg = "The `via` must be element of `board`"
+        #    raise ValueError(msg)
 
     vias.append(_via)
 
-    via_width = _via.GetWidth()
+    via_width = _via.diameter
     via_clearance = _via.GetOwnClearance(_via.GetLayer())
 
     if track_width == 0 or via_clearance == 0:
@@ -137,7 +135,7 @@ def add_via_pattern(
     logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
     logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
-    logger.debug(f"netclass: {_via.GetNetClassName()}")
+    #logger.debug(f"netclass: {_via.GetNetClassName()}")
 
     if pattern in [Pattern.STAGGER, Pattern.DIAGONAL] and track_width > via_width:
         logger.debug(
@@ -146,7 +144,7 @@ def add_via_pattern(
         )
         pattern = Pattern.PERPENDICULAR
 
-    move = pcbnew.VECTOR2I(0, 0)
+    move = Vector2.from_xy(0, 0)
     offset_x = 0
     offset_y = 0
 
@@ -194,14 +192,14 @@ def add_via_pattern(
         v.SetNetCode(0)
         v.SetIsFree(True)
         if pattern == Pattern.PERPENDICULAR:
-            move += pcbnew.VECTOR2I(offset_x, offset_y)
+            move += Vector2.from_xy(offset_x, offset_y)
         elif pattern == Pattern.DIAGONAL:
-            move += pcbnew.VECTOR2I(offset_x, offset_y)
+            move += Vector2.from_xy(offset_x, offset_y)
         else:  # Pattern.STAGGER
             coeffs = zigzag[i % 2]
             x = int(offset_x * coeffs[0])
             y = int(offset_y * coeffs[1])
-            move += pcbnew.VECTOR2I(x, y)
+            move += Vector2.from_xy(x, y)
         v.Move(move)
         if select:
             v.SetSelected()
@@ -212,7 +210,7 @@ def add_via_pattern(
 
 
 def rotate_via_pattern(
-    vias: List[pcbnew.PCB_VIA],
+    vias: List[Via],
     direction: RotateDirection,
     *,
     reference_index: int = 0,
@@ -225,10 +223,10 @@ def rotate_via_pattern(
         msg = "The `reference_index` argument is out of range"
         raise ValueError(msg)
 
-    reference_position = vias[reference_index].GetPosition()
+    reference_position = vias[reference_index].position
     for i, via in enumerate(vias):
         if i == reference_index:
             continue
-        via.Rotate(
-            reference_position, pcbnew.EDA_ANGLE(direction * -90, pcbnew.DEGREES_T)
-        )
+        #via.Rotate(
+        #    reference_position, Angle.from_degrees(direction * -90)
+        #)

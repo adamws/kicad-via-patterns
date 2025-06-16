@@ -1,7 +1,7 @@
 [build-system]
 requires = [
   "hatchling>=1.18",
-  "hatch-kicad",
+  "hatch-kicad @ file:///home/aws/git/hatch-kicad",
   "hatch-vcs",
 ]
 build-backend = "hatchling.build"
@@ -41,6 +41,7 @@ include = [
 packages = ["via_patterns"]
 
 [tool.hatch.build.targets.kicad-package]
+compatibility = "ipc"
 name = "Via Patterns"
 description = "Add vias using various patterns"
 description_full = [
@@ -50,13 +51,22 @@ identifier = "com.github.adamws.kicad-via-patterns"
 author = { name = "adamws", web="https://adamws.github.io" }
 status = "{env:PLUGIN_KICAD_STATUS:development}"
 kicad_version = "7.0"
-sources = ["via_patterns"]
 include = [
   "via_patterns/*.py",
   "via_patterns/icon.png",
+  "requirements.txt",
+  "entrypoint.py",
 ]
 icon = "resources/icon.png"
 download_url = "{env:PLUGIN_KICAD_RELEASE_URL:https://adamws.github.io/kicad-via-patterns/{zip_name}}"
+
+[[tool.hatch.build.targets.kicad-package.actions]]
+identifier = "show-gui"
+name = "Via Patterns"
+description = "Add vias using various patterns"
+entrypoint = "entrypoint.py"
+show_button = true
+icons_light = ["via_patterns/icon.png"]
 
 [tool.hatch.build.targets.kicad-package.hooks.kicad-repository]
 enable-by-default = false
