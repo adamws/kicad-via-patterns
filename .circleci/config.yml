@@ -207,9 +207,9 @@ workflows:
               version:
                 - 7.0.11-focal
                 - 7.0.11-mantic
-                - 8.0.5-focal
-                - 8.0.5-jammy
-                - 9.0.1-jammy
+                - 8.0.9-focal
+                - 8.0.9-jammy
+                - 9.0.2-jammy
       - collect-coverage:
           requires:
             - test-linux
@@ -218,8 +218,8 @@ workflows:
             parameters:
               kicad-version:
                 - 7.0.11
-                - 8.0.5
-                - 9.0.1
+                - 8.0.9
+                - 9.0.2
       - create-pcm-package:
           requires: &required-tests
             - test-linux
