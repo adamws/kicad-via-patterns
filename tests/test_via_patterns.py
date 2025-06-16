@@ -107,12 +107,12 @@ def work_board(board_path):
 
 
 def assert_via_nets(
-    items: List[pcbnew.PCB_VIA],
-    net: Union[str, int],
+    items: List[pcbnew.PCB_VIA], net: Union[str, int], inherit_net: bool
 ) -> None:
     assert items[0].GetNetname() == net if isinstance(net, str) else f"Net{net}"
+    expected_netcode = items[0].GetNetCode() if inherit_net else 0
     for i in range(1, len(items)):
-        assert items[i].GetNetCode() == 0
+        assert items[i].GetNetCode() == expected_netcode
 
 
 def assert_drc(tmpdir, board_path: Union[str, os.PathLike], log: bool = True) -> None:
@@ -144,10 +144,19 @@ def assert_drc(tmpdir, board_path: Union[str, os.PathLike], log: bool = True) ->
     "pattern", [Pattern.PERPENDICULAR, Pattern.DIAGONAL, Pattern.STAGGER]
 )
 @pytest.mark.parametrize("via", [None, (0.8, 0.4)])
-@pytest.mark.parametrize("track_width", [0, 0.65])  # 0 means deafult (0.2)
+@pytest.mark.parametrize("track_width", [0, 0.65])  # 0 means default (0.2)
 @pytest.mark.parametrize("direction", [Direction.HORIZONTAL, Direction.VERTICAL])
+@pytest.mark.parametrize("inherit_net", [False, True])
 def test_via_pattern(
-    number_of_vias, pattern, via, track_width, direction, board_path, work_board, tmpdir
+    number_of_vias,
+    pattern,
+    via,
+    track_width,
+    direction,
+    inherit_net,
+    board_path,
+    work_board,
+    tmpdir,
 ) -> None:
     net = "Net1"
     track_width = cast(int, pcbnew.FromMM(track_width))
@@ -162,9 +171,10 @@ def test_via_pattern(
             net=net,
             track_width=track_width,
             direction=direction,
+            inherit_net=inherit_net,
         )
         assert len(vias) == number_of_vias
-        assert_via_nets(vias, net)
+        assert_via_nets(vias, net, inherit_net)
 
     # add tracks to created vias in separate board which will be used
     # for DRC checks and extra render for html report

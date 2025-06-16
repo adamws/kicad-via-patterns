@@ -113,6 +113,7 @@ class PluginAction(pcbnew.ActionPlugin):
                     int,
                     pcbnew.ValueFromString(iu_scale, user_units, dlg.get_track_width()),
                 ),
+                inherit_net=dlg.assign_nets(),
             )
 
         dlg.Destroy()

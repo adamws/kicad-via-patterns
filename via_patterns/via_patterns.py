@@ -84,6 +84,7 @@ def add_via_pattern(
     track_width: int = 0,
     extra_space: int = 0,
     select: bool = False,
+    inherit_net: bool = False,
 ) -> List[pcbnew.PCB_VIA]:
     vias: List[pcbnew.PCB_VIA] = []
 
@@ -202,7 +203,10 @@ def add_via_pattern(
     for i in range(0, count - 1):
         v = _via.Duplicate()
         assert v, "Failed to duplicate via item"
-        v.SetNetCode(0)
+        if inherit_net:
+            v.SetNetCode(_via.GetNetCode())
+        else:
+            v.SetNetCode(0)
         v.SetIsFree(True)
         if pattern == Pattern.PERPENDICULAR:
             move += pcbnew.VECTOR2I(offset_x, offset_y)
