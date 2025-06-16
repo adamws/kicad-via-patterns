@@ -53,14 +53,15 @@ to PCM repository list.
 
     ![gui](resources/gui.png)
 
-   Select pattern type and size. Set track width. Click OK.
+   Select pattern type and size. Set track width. In case of via stitching select 'Inherit net' checkbox. Click OK.
 3. Adjust pattern orientation with rotation buttons in new pop-up dialog.
 
     ![gui-rotate](resources/gui-rotate.png)
 
-4. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties except net).
+4. Pattern will start at position of selected via and will use it as an template (i.e. added vias will have same properties).
     - Pattern elements will be automatically selected to ease reposition or rotation/flip.
-5. Update nets of created vias and continue routing.
+5. If 'Inherit net' option selected, then all newly created vias will be assigned to the same net as an template.
+Otherwise the vias will have no net assigned, in such case update nets before continuing routing.
 
 > [!WARNING]
 > For KiCad 9 users:
