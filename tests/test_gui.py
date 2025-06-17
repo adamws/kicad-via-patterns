@@ -6,7 +6,7 @@ import subprocess
 import pytest
 import wx
 
-from via_patterns.dialog import FloatValidator
+from via_patterns.dialog import FloatValidator, IntValidator
 
 from .conftest import get_screen_manager
 
@@ -77,22 +77,67 @@ def validator_screen_manager():
 
 
 @pytest.mark.usefixtures("validator_screen_manager")
-class TestFloatValidator:
+class TestValidators:
+
+    VALID_INTS = [
+        "0",
+        "42",
+        "-42",
+        "+42",
+        "999999",
+    ]
+    VALID_FLOATS = [
+        "0.0",
+        "123.456",
+        "-1.23",
+        "+0.5",
+        ".75",
+        "-.999",
+        "+.001",
+        "1e3",  # scientific notation (supported)
+        "-2e-2",
+    ]
+    INVALID_INPUTS = [
+        "abc",  # non-numeric
+        "12a",  # mixed
+        "++1",  # double sign
+        "--1",
+        "1..2",  # multiple dots
+        "1.2.3",
+        "0x123",  # hex-like
+        "1e3.5",  # malformed sci notation
+        "",  # empty string
+        " ",  # whitespace
+        ".",  # standalone dot
+        "-",  # standalone minus
+        "+",  # standalone plus
+    ]
+    VALID_FLOAT_NOT_INT = [
+        "1.0",  # technically a float
+        "-1.0",
+        "+0.0",
+        ".5",
+        "-.5",
+        "+.5",
+    ]
+
     @pytest.fixture
-    def text_ctrl(self):
+    def int_ctrl(self):
+        frame = wx.Frame(None)
+        ctrl = wx.TextCtrl(frame, validator=IntValidator(), name="TestInt")
+        frame.Show()
+        yield ctrl
+        frame.Destroy()
+
+    @pytest.fixture
+    def float_ctrl(self):
         frame = wx.Frame(None)
         ctrl = wx.TextCtrl(frame, validator=FloatValidator(), name="TestFloat")
         frame.Show()
         yield ctrl
         frame.Destroy()
 
-    @pytest.mark.parametrize(
-        "text",
-        # fmt: off
-        ["123", "1.5", "+1.5", "-1.5", "0.5", ".5", "+.5", "0", "0.0", "+0", " 1.1", "1.1 "]
-        # fmt: on
-    )
-    def test_valid_float(self, text_ctrl, monkeypatch, text):
+    def valid_field(self, ctrl, monkeypatch, text):
         call_count = {"count": 0}
 
         def fake_messagebox(msg, caption, *args, **kwargs):
@@ -101,17 +146,11 @@ class TestFloatValidator:
 
         monkeypatch.setattr(wx, "MessageBox", fake_messagebox)
 
-        text_ctrl.SetValue(text)
-        assert text_ctrl.GetValidator().Validate(text_ctrl.GetParent() or text_ctrl)
+        ctrl.SetValue(text)
+        assert ctrl.GetValidator().Validate(ctrl.GetParent() or ctrl)
         assert call_count["count"] == 0
 
-    @pytest.mark.parametrize(
-        "text",
-        # fmt: off
-        ["123a", "a123", "0x123", "123-", ".123-", "", "+", "+-1", "1,1"]
-        # fmt: on
-    )
-    def test_invalid_float(self, text_ctrl, monkeypatch, text):
+    def invalid_field(self, ctrl, monkeypatch, text, expected_err):
         captured = {}
 
         def fake_messagebox(msg, caption, *args, **kwargs):
@@ -121,9 +160,33 @@ class TestFloatValidator:
 
         monkeypatch.setattr(wx, "MessageBox", fake_messagebox)
 
-        text_ctrl.SetValue(text)
-        assert not text_ctrl.GetValidator().Validate(text_ctrl.GetParent() or text_ctrl)
+        ctrl.SetValue(text)
+        assert not ctrl.GetValidator().Validate(ctrl.GetParent() or ctrl)
         assert captured["caption"] == "Error"
-        assert re.match(
-            r"Invalid 'TestFloat' value: '.*' is not a number!", captured["msg"]
+        assert re.match(expected_err, captured["msg"])
+
+    @pytest.mark.parametrize("text", VALID_INTS)
+    def test_valid_int(self, int_ctrl, monkeypatch, text):
+        self.valid_field(int_ctrl, monkeypatch, text)
+
+    @pytest.mark.parametrize("text", INVALID_INPUTS + VALID_FLOAT_NOT_INT)
+    def test_invalid_int(self, int_ctrl, monkeypatch, text):
+        self.invalid_field(
+            int_ctrl,
+            monkeypatch,
+            text,
+            r"Invalid 'TestInt' value: '.*' is not a number!",
+        )
+
+    @pytest.mark.parametrize("text", VALID_FLOATS + VALID_INTS)
+    def test_valid_float(self, float_ctrl, monkeypatch, text):
+        self.valid_field(float_ctrl, monkeypatch, text)
+
+    @pytest.mark.parametrize("text", INVALID_INPUTS)
+    def test_invalid_float(self, float_ctrl, monkeypatch, text):
+        self.invalid_field(
+            float_ctrl,
+            monkeypatch,
+            text,
+            r"Invalid 'TestFloat' value: '.*' is not a number!",
         )
