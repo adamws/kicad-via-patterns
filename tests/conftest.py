@@ -1,11 +1,14 @@
 import base64
+import ctypes
 import glob
 import logging
 import mimetypes
 import os
 import re
 import shutil
+import subprocess
 import sys
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Tuple, Union
@@ -13,6 +16,11 @@ from typing import Tuple, Union
 import pcbnew
 import pytest
 import svgpathtools
+from PIL import ImageGrab
+from pyvirtualdisplay.smartdisplay import DisplayTimeoutError, SmartDisplay
+
+if sys.platform == "win32":
+    from ctypes.wintypes import DWORD, HWND, RECT
 
 Numeric = Union[int, float]
 Box = Tuple[Numeric, Numeric, Numeric, Numeric]
@@ -45,6 +53,22 @@ def package_name(request):
     if request.config.getoption("--test-plugin-installation"):
         return "com_github_adamws_kicad-via-patterns"
     return "via_patterns"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def prepare_ci_machine() -> None:
+    # when running on CircleCI's Windows machine, there is annoying
+    # notification po-up opened which may obstruct tested plugin window
+    # when GUI testing. When running on Windows and CI, simulate single
+    # 'ESC' press to close notification. Do this once before testing starts.
+    if "CIRCLECI" in os.environ and sys.platform == "win32":
+        VK_ESCAPE = 0x1B
+        KEYEVENTF_EXTENDEDKEY = 0x0001
+        KEYEVENTF_KEYUP = 0x0002
+        user32 = ctypes.windll.user32
+        user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_EXTENDEDKEY, 0)
+        time.sleep(0.1)
+        user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
 
 
 def prepare_kicad_config() -> None:
@@ -192,3 +216,110 @@ def pytest_runtest_makereport(item, call):
                 with open(url) as f:
                     extras.append(pytest_html.extras.url(f.read()))
         report.extras = extras
+
+
+class LinuxVirtualScreenManager:
+    def __enter__(self):
+        self.display = SmartDisplay(backend="xvfb", size=(960, 640))
+        self.display.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.display.stop()
+        return False
+
+    def screenshot(self, window_name, path):
+        try:
+            img = self.display.waitgrab(timeout=5)
+            img.save(path)
+            return True
+        except DisplayTimeoutError as err:
+            logger.error(err)
+            return False
+
+
+def find_window(name):
+    if sys.platform != "win32":
+        return None
+    user32 = ctypes.windll.user32
+    return user32.FindWindowW(None, name)
+
+
+def get_window_position(window_handle) -> Union[None, Tuple[int, int, int, int]]:
+    if sys.platform != "win32":
+        return None
+    dwmapi = ctypes.windll.dwmapi
+    # based on https://stackoverflow.com/a/67137723
+    rect = RECT()
+    DMWA_EXTENDED_FRAME_BOUNDS = 9
+    dwmapi.DwmGetWindowAttribute(
+        HWND(window_handle),
+        DWORD(DMWA_EXTENDED_FRAME_BOUNDS),
+        ctypes.byref(rect),
+        ctypes.sizeof(rect),
+    )
+    return (rect.left, rect.top, rect.right, rect.bottom)
+
+
+class HostScreenManager:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def screenshot(self, window_name, path):
+        try:
+            time.sleep(1)
+            window_handle = find_window(window_name)
+            window_rect = get_window_position(window_handle)
+            img = ImageGrab.grab()
+            if window_rect:
+                img_width, img_height = img.size
+                x1, y1, x2, y2 = window_rect
+
+                # Clamp coordinates within image bounds
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(img_width, x2), min(img_height, y2)
+
+                if x1 < x2 and y1 < y2:
+                    img = img.crop((x1, y1, x2, y2))
+                else:
+                    logger.warning(
+                        f"Can't crop image of size {img_width}x{img_height} "
+                        f"to rectangle ({x1},{y1},{x2},{y2})"
+                    )
+            img.save(path)
+            return True
+        except Exception as err:
+            logger.error(err)
+            return False
+
+
+def is_xvfb_avaiable() -> bool:
+    try:
+        p = subprocess.Popen(
+            ["Xvfb", "-help"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+        )
+        _, _ = p.communicate()
+        exit_code = p.returncode
+        return exit_code == 0
+    except FileNotFoundError:
+        logger.warning("Xvfb was not found")
+    return False
+
+
+@pytest.fixture
+def screen_manager():
+    if sys.platform == "linux":
+        if is_xvfb_avaiable():
+            return LinuxVirtualScreenManager()
+        else:
+            return HostScreenManager()
+    elif sys.platform == "win32":
+        return HostScreenManager()
+    else:
+        pytest.skip(f"Platform '{sys.platform}' is not supported")

@@ -341,10 +341,23 @@ class RotateDialog(wx.Dialog):
 
 # used for tests
 if __name__ == "__main__":
+    import argparse
     import threading
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dialog", choices=["main", "rotate"], help="Schoose the dialog")
+    args = parser.parse_args()
+
     app = wx.App()
-    dlg = MainDialog(None)
+
+    if args.dialog == "main":
+        dlg = MainDialog(None)
+    else:
+
+        def rotate_callback(_) -> None:
+            pass
+
+        dlg = RotateDialog(None, rotate_callback)
 
     if "PYTEST_CURRENT_TEST" in os.environ:
         print(f"Using {wx.version()}")
@@ -364,9 +377,10 @@ if __name__ == "__main__":
         app.MainLoop()
     else:
         dlg.ShowModal()
-        print(f"number of vias: {dlg.get_number_of_vias()}")
-        print(f"pattern: {dlg.get_pattern_type()}")
-        print(f"assign nets: {dlg.assign_nets()}")
-        print(f"extra space: {dlg.get_extra_space()}")
+        if args.dialog == "main":
+            print(f"number of vias: {dlg.get_number_of_vias()}")
+            print(f"pattern: {dlg.get_pattern_type()}")
+            print(f"assign nets: {dlg.assign_nets()}")
+            print(f"extra space: {dlg.get_extra_space()}")
 
     print("exit ok")

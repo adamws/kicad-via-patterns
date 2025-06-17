@@ -24,4 +24,7 @@ refresh-version:
   hatch build --hooks-only
 
 main-dialog:
-  python -m via_patterns.dialog
+  python -m via_patterns.dialog main
+
+rotate-dialog:
+  python -m via_patterns.dialog rotate
