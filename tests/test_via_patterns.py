@@ -16,7 +16,7 @@ from via_patterns import (
     add_via_pattern,
 )
 
-from .conftest import KICAD_VERSION, generate_render
+from .conftest import KICAD_VERSION, generate_render, kicad_cli
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ def assert_drc(tmpdir, board_path: Union[str, os.PathLike], log: bool = True) ->
 
     drc_path = tmpdir / f"report/{board_name}-drc.json"
     subprocess.run(
-        f"kicad-cli pcb drc --output {drc_path} --format json {board_path}",
+        f"{kicad_cli()} pcb drc --output {drc_path} --format json {board_path}",
         shell=True,
         check=False,
     )

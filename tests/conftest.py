@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import shutil
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Tuple, Union
@@ -58,6 +59,12 @@ def prepare_kicad_config() -> None:
 @pytest.fixture(autouse=True, scope="function")
 def prepare_report_dir(tmpdir) -> None:
     os.mkdir(f"{tmpdir}/report")
+
+
+def kicad_cli() -> str:
+    if sys.platform == "darwin":
+        return "/opt/homebrew/bin/kicad-cli"
+    return "kicad-cli"
 
 
 def merge_bbox(left: Box, right: Box) -> Box:

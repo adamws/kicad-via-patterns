@@ -92,6 +92,42 @@ jobs:
           path: report.html
       - store_test_results:
           path: test-results
+  test-macos:
+    macos:
+      xcode: 15.3
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+    parameters:
+      kicad-version:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Install KiCad
+          command: |
+            if [ "<<parameters.kicad-version>>" = "9.0.2" ]; then
+              revision=d3557f0bbb9829b1302932c575bee62e504d56ab
+              filepath=Casks/k/kicad.rb
+            else
+              echo "Unsupported KiCad version!"
+            fi
+            curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/$revision/$filepath > kicad.rb
+            brew install kicad.rb
+            rm kicad.rb
+      - run:
+          name: Install dependencies
+          command: |
+            source .circleci/scripts/use-kicad-python-macos.sh
+            pip install --no-cache-dir -r dev-requirements.txt
+      - run:
+          name: Run tests
+          command: |
+            source .circleci/scripts/use-kicad-python-macos.sh
+            pytest --junitxml=test-results/pytest/results.xml tests
+      - store_artifacts:
+          path: report.html
+      - store_test_results:
+          path: test-results
   create-pcm-package:
     docker:
       - image: cimg/python:3.11
@@ -220,10 +256,16 @@ workflows:
                 - 7.0.11
                 - 8.0.9
                 - 9.0.2
+      - test-macos:
+          matrix:
+            parameters:
+              kicad-version:
+                - 9.0.2
       - create-pcm-package:
           requires: &required-tests
             - test-linux
             - test-windows
+            - test-macos
       - create-pypi-package:
           requires: *required-tests
       - validate-pypi-package:
