@@ -228,6 +228,14 @@ class MainDialog(wx.Dialog):
         )
         track_width_label = wx.StaticText(self, -1, self.units_label)
 
+        extra_spacing_ctrl = LabeledTextCtrl(
+            self,
+            "Extra space:",
+            value="0",
+            validator=FloatValidator(),
+        )
+        extra_spacing_label = wx.StaticText(self, -1, self.units_label)
+
         box = wx.StaticBox(self, label="Pattern settings")
         sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
 
@@ -242,13 +250,19 @@ class MainDialog(wx.Dialog):
         row2.Add(track_width_ctrl, 0, wx.EXPAND | wx.ALL, 5)
         row2.Add(track_width_label, 0, wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
 
+        row3 = wx.BoxSizer(wx.HORIZONTAL)
+        row3.Add(extra_spacing_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+        row3.Add(extra_spacing_label, 0, wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
+
         sizer.Add(row1, 0, wx.EXPAND | wx.ALL, 5)
         sizer.Add(row2, 0, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(row3, 0, wx.EXPAND | wx.ALL, 5)
 
         self.__number_of_vias = size_ctrl.text
         self.__pattern_type = pattern_ctrl.dropdown
         self.__assign_net_checkbox = assign_net_checkbox
         self.__track_width = track_width_ctrl.text
+        self.__extra_space = extra_spacing_ctrl.text
 
         return sizer
 
@@ -263,6 +277,9 @@ class MainDialog(wx.Dialog):
 
     def get_track_width(self) -> str:
         return self.__track_width.GetValue()
+
+    def get_extra_space(self) -> str:
+        return self.__extra_space.GetValue()
 
 
 class RotateDialog(wx.Dialog):
@@ -350,5 +367,6 @@ if __name__ == "__main__":
         print(f"number of vias: {dlg.get_number_of_vias()}")
         print(f"pattern: {dlg.get_pattern_type()}")
         print(f"assign nets: {dlg.assign_nets()}")
+        print(f"extra space: {dlg.get_extra_space()}")
 
     print("exit ok")

@@ -89,6 +89,9 @@ class PluginAction(pcbnew.ActionPlugin):
         user_units = pcbnew.GetUserUnits()
         units_label: str = pcbnew.GetLabel(user_units)
 
+        def _value_from_str(string: str) -> int:
+            return cast(int, pcbnew.ValueFromString(iu_scale, user_units, string))
+
         via_netclass = get_netclass(board, selected_via)
         track_width = via_netclass.GetTrackWidth()
         logger.debug(
@@ -109,11 +112,9 @@ class PluginAction(pcbnew.ActionPlugin):
                 dlg.get_pattern_type(),
                 select=True,
                 via=selected_via,
-                track_width=cast(
-                    int,
-                    pcbnew.ValueFromString(iu_scale, user_units, dlg.get_track_width()),
-                ),
+                track_width=_value_from_str(dlg.get_track_width()),
                 inherit_net=dlg.assign_nets(),
+                extra_space=_value_from_str(dlg.get_extra_space()),
             )
 
         dlg.Destroy()

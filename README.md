@@ -53,7 +53,15 @@ to PCM repository list.
 
     ![gui](resources/gui.png)
 
-   Select pattern type and size. Set track width. In case of via stitching select 'Inherit net' checkbox. Click OK.
+   Select pattern type and size. Set track width and optional extra spacing size. In case of via stitching select 'Inherit net' checkbox. Click OK.
+
+  > [!IMPORTANT]
+  > When **Extra space** is set to 0, vias will be placed as tightly as possible,
+  > respecting the clearance rules of the origin via.
+  > In some cases, placing vias this closely can lead to suboptimal layout, for example,
+  > if it introduces significant breaks in the ground plane.
+  > The `kicad-via-patterns` is a tool, and it is the user's responsibility to use it wisely.
+
 3. Adjust pattern orientation with rotation buttons in new pop-up dialog.
 
     ![gui-rotate](resources/gui-rotate.png)
