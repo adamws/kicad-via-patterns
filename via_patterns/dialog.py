@@ -345,7 +345,7 @@ if __name__ == "__main__":
     import threading
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("dialog", choices=["main", "rotate"], help="Schoose the dialog")
+    parser.add_argument("dialog", choices=["main", "rotate"], help="Choose the dialog")
     args = parser.parse_args()
 
     app = wx.App()
@@ -377,10 +377,11 @@ if __name__ == "__main__":
         app.MainLoop()
     else:
         dlg.ShowModal()
-        if args.dialog == "main":
-            print(f"number of vias: {dlg.get_number_of_vias()}")
-            print(f"pattern: {dlg.get_pattern_type()}")
-            print(f"assign nets: {dlg.assign_nets()}")
-            print(f"extra space: {dlg.get_extra_space()}")
+
+    if args.dialog == "main":
+        print(f"number of vias: {dlg.get_number_of_vias()}")
+        print(f"pattern: {dlg.get_pattern_type()}")
+        print(f"assign nets: {dlg.assign_nets()}")
+        print(f"extra space: {dlg.get_extra_space()}")
 
     print("exit ok")
