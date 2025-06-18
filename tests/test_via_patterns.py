@@ -15,6 +15,7 @@ from via_patterns import (
     Pattern,
     add_via_pattern,
 )
+from via_patterns.via_patterns import RotateDirection, rotate_via_pattern
 
 from .conftest import KICAD_VERSION, generate_render, kicad_cli
 
@@ -269,6 +270,46 @@ def test_via_pattern_negative_track_width(work_board) -> None:
             ValueError, match="The `track_width` argument must be greater or equal 0"
         ):
             add_via_pattern(board, 5, Pattern.PERPENDICULAR, track_width=-10)
+
+
+def test_pattern_rotation(board_path, work_board) -> None:
+    # First rotation test, just assert if positions changed
+    net = "Net1"
+    number_of_vias = 3
+    with work_board(number_of_vias) as board:
+        vias = add_via_pattern(
+            board,
+            number_of_vias,
+            Pattern.PERPENDICULAR,
+            via=None,
+            net=net,
+        )
+        assert len(vias) == number_of_vias
+        assert_via_nets(vias, net, False)
+
+        vias = []
+        items = board.AllConnectedItems()
+        for item in items:
+            if item.Type() != pcbnew.PCB_VIA_T:
+                # remove temporary tracks
+                board.RemoveNative(item)
+            else:
+                vias.append(item)
+
+        via_positions = [v.GetPosition() for v in vias]
+        logger.debug(f"{via_positions=}")
+
+        rotate_via_pattern(vias, RotateDirection.CLOCKWISE)
+
+        new_via_positions = [v.GetPosition() for v in vias]
+        logger.debug(f"{new_via_positions=}")
+
+        board.Save(board_path)
+        generate_render(board_path)
+
+        assert via_positions[0] == new_via_positions[0]
+        assert via_positions[1] != new_via_positions[1]
+        assert via_positions[2] != new_via_positions[2]
 
 
 @pytest.mark.parametrize(
