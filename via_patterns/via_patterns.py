@@ -173,8 +173,9 @@ def add_via_pattern(
             offset_x = int(via_width / 2) + via_clearance + int(track_width / 2)
         else:
             logger.debug("Track width small enough to be ignored")
-            offset_x = via_clearance + max(via_width, track_width) + extra_space
+            offset_x = via_clearance + max(via_width, track_width)
             offset_x = int(offset_x / SQRT2)
+        offset_x += extra_space
         offset_y = offset_x
     else:  # Pattern.STAGGER
         offset_x = (
