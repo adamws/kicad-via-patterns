@@ -47,7 +47,11 @@ class RotateDirection(int, Enum):
 
 def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
     via = pcbnew.PCB_VIA(board)
-    via.SetViaType(pcbnew.VIATYPE_THROUGH)
+    if KICAD_VERSION >= (10, 0, 0):
+        # KiCad's swig interface does not define VIATYPE anymore, probably a bug
+        via.SetViaType(1)
+    else:
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
     via.SetDrill(pcbnew.FromMM(0.3))
     via.SetTopLayer(pcbnew.F_Cu)
     via.SetBottomLayer(pcbnew.B_Cu)

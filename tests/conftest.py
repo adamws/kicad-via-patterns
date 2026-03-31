@@ -329,3 +329,18 @@ def screen_manager():
     if not mgr:
         pytest.skip(f"Platform '{sys.platform}' is not supported")
     return mgr
+
+
+def filter_kiacd10_errs(errs):
+    if KICAD_VERSION < (10, 0, 0):
+        return errs
+    # on KiCad 10.0.0 release there are:
+    # 'assert "m_choices.GetCount() > 0" failed in PROPERTY_ENUM(): No enum choices'
+    # error prints, ignore them
+    if isinstance(errs, bytes):
+        errs = errs.decode("utf-8", errors="ignore")
+    pattern = re.compile(r"No enum choices defined")
+    filtered_errs = "\n".join(
+        line for line in errs.splitlines() if not pattern.search(line)
+    )
+    return filtered_errs

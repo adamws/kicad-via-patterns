@@ -59,7 +59,6 @@ icon = "resources/icon.png"
 download_url = "{env:PLUGIN_KICAD_RELEASE_URL:https://adamws.github.io/kicad-via-patterns/{zip_name}}"
 
 [tool.hatch.build.targets.kicad-package.hooks.kicad-repository]
-enable-by-default = false
 
 [tool.hatch.envs.lint]
 detached = true

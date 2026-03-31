@@ -74,6 +74,7 @@ jobs:
           command: |
             irm get.scoop.sh -outfile "install.ps1"
             .\install.ps1 -RunAsAdmin -ScoopDir "C:\scoop"
+            scoop config use_external_7zip true
             scoop bucket add extras
             scoop install kicad@<<parameters.kicad-version>>
             scoop cache rm --all
@@ -94,7 +95,8 @@ jobs:
           path: test-results
   test-macos:
     macos:
-      xcode: 15.3
+      xcode: 16.4.0
+    resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
     parameters:
@@ -106,6 +108,7 @@ jobs:
           name: Downgrade brew
           command: | # workaround for https://github.com/orgs/Homebrew/discussions/6351
             cd "$(brew --repo)"
+            git fetch
             git checkout 4.6.3
       - run:
           name: Install KiCad
@@ -118,6 +121,12 @@ jobs:
               filepath=Casks/k/kicad.rb
             elif [ "<<parameters.kicad-version>>" = "9.0.4" ]; then
               revision=f9214eaa52048e16dbcfaac9ffd22caea1b92fad
+              filepath=Casks/k/kicad.rb
+            elif [ "<<parameters.kicad-version>>" = "9.0.8" ]; then
+              revision=61ef15e03fd712bbccab7fd91aa0ef6929cf5651
+              filepath=Casks/k/kicad.rb
+            elif [ "<<parameters.kicad-version>>" = "10.0.0" ]; then
+              revision=5c96043fbafb7f6103bd06f88e6ab3347552e53c
               filepath=Casks/k/kicad.rb
             else
               echo "Unsupported KiCad version!"
@@ -260,7 +269,8 @@ workflows:
                 - 7.0.11-mantic
                 - 8.0.9-focal
                 - 8.0.9-jammy
-                - 9.0.4-jammy
+                - 9.0.8-noble
+                - 10.0.0-noble
       - collect-coverage:
           requires:
             - test-linux
@@ -268,14 +278,15 @@ workflows:
           matrix:
             parameters:
               kicad-version:
-                - 7.0.11
                 - 8.0.9
-                - 9.0.4
+                - 9.0.8
+                - 10.0.0-1
       - test-macos:
           matrix:
             parameters:
               kicad-version:
-                - 9.0.4
+                - 9.0.8
+                - 10.0.0
       - create-pcm-package:
           requires: &required-tests
             - test-linux

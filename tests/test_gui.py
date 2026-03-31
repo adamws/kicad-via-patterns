@@ -8,7 +8,7 @@ import wx
 
 from via_patterns.dialog import FloatValidator, IntValidator
 
-from .conftest import get_screen_manager
+from .conftest import filter_kiacd10_errs, get_screen_manager
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ def run_gui_test(tmpdir, screen_manager, window_name, gui_callback) -> None:
             logger.error("Process timeout expired")
             p.kill()
             outs, errs = p.communicate()
+
+        errs = filter_kiacd10_errs(errs)
 
         logger.info(f"Process stdout: {outs}")
         logger.info(f"Process stderr: {errs}")
@@ -73,7 +75,7 @@ def validator_screen_manager():
             yield
             app.Destroy()
     else:
-        pytest.skip(f"Platform is not supported")
+        pytest.skip("Platform is not supported")
 
 
 @pytest.mark.usefixtures("validator_screen_manager")
