@@ -32,6 +32,10 @@ Following table shows images of supported patterns with clearance outlines enabl
     <td align="center" style="vertical-align: middle;">Stagger</td>
     <td align="center"><img src="resources/stagger.png" width="80%"/></td>
   </tr>
+    <tr>
+    <td align="center" style="vertical-align: middle;">Square</td>
+    <td align="center"><img src="resources/square.png" width="80%"/></td>
+  </tr>
 </table>
 
 ## Installation

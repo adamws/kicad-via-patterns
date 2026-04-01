@@ -205,6 +205,7 @@ class MainDialog(wx.Dialog):
             Pattern.PERPENDICULAR.value,
             Pattern.DIAGONAL.value,
             Pattern.STAGGER.value,
+            Pattern.SQUARE.value,
         ]
         pattern_ctrl = LabeledDropdownCtrl(box, "Type:", choices)
 

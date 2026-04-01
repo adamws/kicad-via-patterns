@@ -22,6 +22,7 @@ class Pattern(str, Enum):
     PERPENDICULAR = "Perpendicular"
     DIAGONAL = "Diagonal"
     STAGGER = "Stagger"
+    SQUARE = "Square"
 
     @classmethod
     def get(cls, name: str) -> Pattern:
@@ -92,7 +93,7 @@ def add_via_pattern(
 ) -> List[pcbnew.PCB_VIA]:
     vias: List[pcbnew.PCB_VIA] = []
 
-    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER]:
+    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER, Pattern.SQUARE]:
         msg = "Unsupported pattern"
         raise ValueError(msg)
 
@@ -162,13 +163,17 @@ def add_via_pattern(
         )
         pattern = Pattern.PERPENDICULAR
 
+    side_length = count
+    if pattern == Pattern.SQUARE:
+        count = side_length * side_length
+
     move = pcbnew.VECTOR2I(0, 0)
     offset_x = 0
     offset_y = 0
 
-    if pattern == Pattern.PERPENDICULAR:
+    if pattern == Pattern.PERPENDICULAR or pattern == Pattern.SQUARE:
         offset_x = via_clearance + max(via_width, track_width) + extra_space
-        offset_y = 0
+        offset_y = offset_x if pattern == Pattern.SQUARE else 0
     elif pattern == Pattern.DIAGONAL:
         if track_width > 2 * int(
             ((via_width + via_clearance) / SQRT2) - via_clearance - via_width / 2
@@ -217,6 +222,15 @@ def add_via_pattern(
             move += pcbnew.VECTOR2I(offset_x, offset_y)
         elif pattern == Pattern.DIAGONAL:
             move += pcbnew.VECTOR2I(offset_x, offset_y)
+        elif pattern == Pattern.SQUARE:
+            # i goes from 0 to count-2.
+            # We are generating the (i+2)-th via (1-based index 2..count)
+            # relative to the 1st via (0,0).
+            # Let k = i + 1. k goes from 1 to count-1.
+            k = i + 1
+            row = k // side_length
+            col = k % side_length
+            move = pcbnew.VECTOR2I(col * offset_x, row * offset_y)
         else:  # Pattern.STAGGER
             coeffs = zigzag[i % 2]
             x = int(offset_x * coeffs[0])
