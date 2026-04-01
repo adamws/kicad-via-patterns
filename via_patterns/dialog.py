@@ -199,44 +199,44 @@ class MainDialog(wx.Dialog):
         self.SetSizerAndFit(box)
 
     def get_main_section(self) -> wx.Sizer:
+        box = wx.StaticBox(self, label="Pattern settings")
+
         choices = [
             Pattern.PERPENDICULAR.value,
             Pattern.DIAGONAL.value,
             Pattern.STAGGER.value,
         ]
-        pattern_ctrl = LabeledDropdownCtrl(self, "Type:", choices)
+        pattern_ctrl = LabeledDropdownCtrl(box, "Type:", choices)
 
         size_ctrl = LabeledTextCtrl(
-            self,
+            box,
             "Size:",
             value=str(5),
             width=5,
             validator=IntValidator(),
         )
 
-        assign_net_checkbox = wx.CheckBox(self, label="Inherit net")
+        assign_net_checkbox = wx.CheckBox(box, label="Inherit net")
         assign_net_checkbox.SetValue(False)
         assign_net_checkbox.SetToolTip(
             "If checked, all new vias will be assigned to the currently selected via net."
         )
 
         track_width_ctrl = LabeledTextCtrl(
-            self,
+            box,
             "Track width:",
             value=self.initial_track_width,
             validator=FloatValidator(),
         )
-        track_width_label = wx.StaticText(self, -1, self.units_label)
+        track_width_label = wx.StaticText(box, -1, self.units_label)
 
         extra_spacing_ctrl = LabeledTextCtrl(
-            self,
+            box,
             "Extra space:",
             value="0",
             validator=FloatValidator(),
         )
-        extra_spacing_label = wx.StaticText(self, -1, self.units_label)
-
-        box = wx.StaticBox(self, label="Pattern settings")
+        extra_spacing_label = wx.StaticText(box, -1, self.units_label)
         sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
 
         row1 = wx.BoxSizer(wx.HORIZONTAL)
