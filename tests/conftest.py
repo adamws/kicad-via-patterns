@@ -1,33 +1,38 @@
-import base64
-import ctypes
 import glob
 import logging
-import mimetypes
 import os
-import re
-import shutil
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
+import ctypes
 from pathlib import Path
 from typing import Tuple, Union
+from unittest.mock import MagicMock
 
-import pcbnew
 import pytest
-import svgpathtools
-from PIL import ImageGrab
-from pyvirtualdisplay.smartdisplay import DisplayTimeoutError, SmartDisplay
+from kipy.board import Board
+from kipy.board_types import Net, Via
+from kipy.project_types import NetClass
+from kipy.util.units import from_mm
 
 if sys.platform == "win32":
     from ctypes.wintypes import DWORD, HWND, RECT
 
+try:
+    from PIL import ImageGrab
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
+
+try:
+    from pyvirtualdisplay.smartdisplay import DisplayTimeoutError, SmartDisplay
+    _XVFB_AVAILABLE = True
+except ImportError:
+    _XVFB_AVAILABLE = False
+
 Numeric = Union[int, float]
 Box = Tuple[Numeric, Numeric, Numeric, Numeric]
 
-
-version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", pcbnew.Version())
-KICAD_VERSION = tuple(map(int, version_match.groups())) if version_match else ()
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +40,7 @@ def pytest_addoption(parser) -> None:
     parser.addoption(
         "--test-plugin-installation",
         action="store_true",
-        help="Run tests using ~/.local/share/kicad/8.0/3rdparty/plugins instance instead of local one",
+        help="Run tests using ~/.local/share/kicad/9.0/3rdparty/plugins instance instead of local one",
         default=False,
     )
 
@@ -44,7 +49,7 @@ def pytest_addoption(parser) -> None:
 def package_path(request):
     if request.config.getoption("--test-plugin-installation"):
         home_directory = Path.home()
-        return f"{home_directory}/.local/share/kicad/8.0/3rdparty/plugins"
+        return f"{home_directory}/.local/share/kicad/9.0/3rdparty/plugins"
     return Path(os.path.realpath(__file__)).parents[1]
 
 
@@ -55,141 +60,59 @@ def package_name(request):
     return "via_patterns"
 
 
-@pytest.fixture(autouse=True, scope="session")
-def prepare_ci_machine() -> None:
-    # when running on CircleCI's Windows machine, there is annoying
-    # notification po-up opened which may obstruct tested plugin window
-    # when GUI testing. When running on Windows and CI, simulate single
-    # 'ESC' press to close notification. Do this once before testing starts.
-    if "CIRCLECI" in os.environ and sys.platform == "win32":
-        VK_ESCAPE = 0x1B
-        KEYEVENTF_EXTENDEDKEY = 0x0001
-        KEYEVENTF_KEYUP = 0x0002
-        user32 = ctypes.windll.user32
-        user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_EXTENDEDKEY, 0)
-        time.sleep(0.1)
-        user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
-
-
-def prepare_kicad_config() -> None:
-    test_dir = Path(__file__).parent
-    config_path = pcbnew.SETTINGS_MANAGER.GetUserSettingsPath()
-    logger.debug(config_path)
-    colors_path = f"{config_path}/colors"
-    os.makedirs(colors_path, exist_ok=True)
-    shutil.copy(f"{test_dir}/colors/unittest.json", colors_path)
-
-
 @pytest.fixture(autouse=True, scope="function")
 def prepare_report_dir(tmpdir) -> None:
     os.mkdir(f"{tmpdir}/report")
 
 
-def kicad_cli() -> str:
-    if sys.platform == "darwin":
-        return "/opt/homebrew/bin/kicad-cli"
-    return "kicad-cli"
+@pytest.fixture
+def default_netclass() -> NetClass:
+    nc = NetClass()
+    nc._proto.name = "Default"
+    nc.track_width = from_mm(0.25)
+    nc.clearance = from_mm(0.2)
+    return nc
 
 
-def merge_bbox(left: Box, right: Box) -> Box:
-    """
-    Merge bounding boxes in format (xmin, xmax, ymin, ymax)
-    """
-    return tuple([f(l, r) for l, r, f in zip(left, right, [min, max, min, max])])
+@pytest.fixture
+def mock_board(default_netclass: NetClass) -> MagicMock:
+    board = MagicMock(spec=Board)
 
+    # get_netclass_for_nets: return netclass keyed by net name
+    def _get_netclass_for_nets(net):
+        if hasattr(net, "name"):
+            key = net.name
+        else:
+            key = str(net)
+        return {key: default_netclass}
 
-def shrink_svg(svg: ET.ElementTree, margin: int = 0) -> None:
-    """
-    Shrink the SVG canvas to the size of the drawing.
-    """
-    root = svg.getroot()
-    paths = svgpathtools.document.flattened_paths(root)
+    board.get_netclass_for_nets.side_effect = _get_netclass_for_nets
+    board.get_project.return_value.get_net_classes.return_value = [default_netclass]
+    board.get_nets.return_value = []
 
-    if len(paths) == 0:
-        return
-    bbox = paths[0].bbox()
-    for x in paths:
-        bbox = merge_bbox(bbox, x.bbox())
-    bbox = list(bbox)
-    bbox[0] -= int(margin)
-    bbox[1] += int(margin)
-    bbox[2] -= int(margin)
-    bbox[3] += int(margin)
+    # create_items returns the passed items unchanged
+    def _create_items(items):
+        if isinstance(items, Via):
+            return [items]
+        return list(items)
 
-    root.set(
-        "viewBox",
-        f"{bbox[0]} {bbox[2]} {bbox[1] - bbox[0]} {bbox[3] - bbox[2]}",
-    )
+    board.create_items.side_effect = _create_items
+    board.update_items.side_effect = lambda items: list(items) if hasattr(items, "__iter__") else [items]
+    board.add_to_selection.return_value = []
+    board.begin_commit.return_value = MagicMock()
+    board.push_commit.return_value = None
 
-    root.set("width", f"{float(bbox[1] - bbox[0])}cm")
-    root.set("height", f"{float(bbox[3] - bbox[2])}cm")
-
-
-def generate_render(
-    pcb_path: Union[str, os.PathLike],
-    *,
-    destination_dir: Union[str, os.PathLike] = "",
-) -> None:
-    prepare_kicad_config()
-    pcb_path = Path(pcb_path)
-    pcb_name = pcb_path.stem
-    board = pcbnew.LoadBoard(str(pcb_path))
-    if destination_dir == "":
-        destination_dir = pcb_path.parent
-
-    destination_dir = Path(destination_dir) / "report"
-    assert destination_dir.is_dir()
-
-    plot_layers = [
-        pcbnew.B_Cu,
-        pcbnew.F_Cu,
-        pcbnew.B_SilkS,
-        pcbnew.F_SilkS,
-        pcbnew.Edge_Cuts,
-        pcbnew.B_Mask,
-        pcbnew.F_Mask,
-    ]
-    plot_control = pcbnew.PLOT_CONTROLLER(board)
-    plot_options = plot_control.GetPlotOptions()
-    plot_options.SetOutputDirectory(destination_dir)
-    plot_options.SetColorSettings(
-        pcbnew.GetSettingsManager().GetColorSettings("unittest")
-    )
-    plot_options.SetPlotFrameRef(False)
-    plot_options.SetSketchPadLineWidth(pcbnew.FromMM(0.35))
-    plot_options.SetScale(1)
-    plot_options.SetAutoScale(False)
-    plot_options.SetMirror(False)
-    plot_options.SetUseGerberAttributes(False)
-    plot_options.SetUseAuxOrigin(True)
-    plot_options.SetNegative(False)
-    plot_options.SetPlotReference(True)
-    plot_options.SetPlotValue(True)
-    if KICAD_VERSION < (9, 0, 1):
-        plot_options.SetPlotInvisibleText(False)
-    plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
-    plot_options.SetSvgPrecision(aPrecision=1)
-
-    plot_control.OpenPlotfile("layers", pcbnew.PLOT_FORMAT_SVG)
-    for layer_id in plot_layers:
-        plot_control.SetLayer(layer_id)
-        plot_control.SetColorMode(True)
-        plot_control.PlotLayer()
-    plot_control.ClosePlot()
-
-    filepath = destination_dir / f"{pcb_name}-layers.svg"
-    tree = ET.parse(filepath)
-    shrink_svg(tree, margin=1)
-    os.remove(filepath)
-    tree.write(filepath)
+    return board
 
 
 def to_base64(path):
+    import base64
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
 def image_to_base64(path):
+    import mimetypes
     b64 = to_base64(path)
     mime = mimetypes.guess_type(path)
     return f"data:{mime[0]};base64,{b64}"
@@ -249,7 +172,6 @@ def get_window_position(window_handle) -> Union[None, Tuple[int, int, int, int]]
     if sys.platform != "win32":
         return None
     dwmapi = ctypes.windll.dwmapi
-    # based on https://stackoverflow.com/a/67137723
     rect = RECT()
     DMWA_EXTENDED_FRAME_BOUNDS = 9
     dwmapi.DwmGetWindowAttribute(
@@ -278,7 +200,6 @@ class HostScreenManager:
                 img_width, img_height = img.size
                 x1, y1, x2, y2 = window_rect
 
-                # Clamp coordinates within image bounds
                 x1, y1 = max(0, x1), max(0, y1)
                 x2, y2 = min(img_width, x2), min(img_height, y2)
 
@@ -296,7 +217,7 @@ class HostScreenManager:
             return False
 
 
-def is_xvfb_avaiable() -> bool:
+def is_xvfb_available() -> bool:
     try:
         p = subprocess.Popen(
             ["Xvfb", "-help"],
@@ -305,8 +226,7 @@ def is_xvfb_avaiable() -> bool:
             shell=False,
         )
         _, _ = p.communicate()
-        exit_code = p.returncode
-        return exit_code == 0
+        return p.returncode == 0
     except FileNotFoundError:
         logger.warning("Xvfb was not found")
     return False
@@ -314,11 +234,12 @@ def is_xvfb_avaiable() -> bool:
 
 def get_screen_manager():
     if sys.platform == "linux":
-        if is_xvfb_avaiable():
+        if _XVFB_AVAILABLE and is_xvfb_available():
             return LinuxVirtualScreenManager()
-        else:
+        elif _PIL_AVAILABLE:
             return HostScreenManager()
-    elif sys.platform == "win32":
+        return None
+    elif sys.platform == "win32" and _PIL_AVAILABLE:
         return HostScreenManager()
     return None
 
@@ -329,18 +250,3 @@ def screen_manager():
     if not mgr:
         pytest.skip(f"Platform '{sys.platform}' is not supported")
     return mgr
-
-
-def filter_kiacd10_errs(errs):
-    if KICAD_VERSION < (10, 0, 0):
-        return errs
-    # on KiCad 10.0.0 release there are:
-    # 'assert "m_choices.GetCount() > 0" failed in PROPERTY_ENUM(): No enum choices'
-    # error prints, ignore them
-    if isinstance(errs, bytes):
-        errs = errs.decode("utf-8", errors="ignore")
-    pattern = re.compile(r"No enum choices defined")
-    filtered_errs = "\n".join(
-        line for line in errs.splitlines() if not pattern.search(line)
-    )
-    return filtered_errs
