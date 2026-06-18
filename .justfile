@@ -7,22 +7,14 @@ test tag:
     /bin/bash -c "{{in_docker_install}} && {{in_docker_test}} --html=report-{{tag}}.html"
 
 test-latest10:
-  just test 10.0.0-noble
+  just test 10.0.4-noble
 
 test-latest9:
-  just test 9.0.8-jammy
-
-test-latest8:
-  just test 8.0.9-jammy
-  just test 8.0.9-focal
+  just test 9.0.9-jammy
 
 test-all:
-  just test 10.0.0-noble
-  just test 9.0.8-jammy
-  just test 8.0.9-jammy
-  just test 8.0.9-focal
-  just test 7.0.11-focal
-  just test 7.0.11-mantic
+  just test 10.0.4-noble
+  just test 9.0.9-jammy
 
 refresh-version:
   hatch build --hooks-only

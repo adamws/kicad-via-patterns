@@ -274,8 +274,6 @@ workflows:
           matrix: &linux-matrix
             parameters:
               version:
-                - 7.0.11-mantic
-                - 8.0.9-jammy
                 - 9.0.9-noble
                 - 10.0.3-noble
       - collect-coverage:
@@ -285,7 +283,6 @@ workflows:
           matrix:
             parameters:
               kicad-version:
-                - 8.0.9
                 - 9.0.8
                 - 10.0.3
       - test-macos:

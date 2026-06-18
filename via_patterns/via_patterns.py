@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import logging
 import math
-import re
 from enum import Enum, auto
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
-import pcbnew
+from kipy.board import Board
+from kipy.board_types import Net, Via
+from kipy.geometry import Angle, Vector2
+from kipy.project_types import NetClass
+from kipy.proto.board.board_types_pb2 import ViaType
+from kipy.util.units import from_mm
 
 logger = logging.getLogger(__name__)
-ZERO_POSITION = pcbnew.VECTOR2I(0, 0)
+ZERO_POSITION = Vector2.from_xy(0, 0)
 SQRT2 = math.sqrt(2)
 SQRT3 = math.sqrt(3)
-version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", pcbnew.Version())
-KICAD_VERSION = tuple(map(int, version_match.groups())) if version_match else ()
-if KICAD_VERSION == ():
-    logger.warning("Could not determine KiCad version")
 
 
 class Pattern(str, Enum):
@@ -46,54 +46,61 @@ class RotateDirection(int, Enum):
     COUNTERCLOCKWISE = -1
 
 
-def _default_via(board: pcbnew.BOARD) -> pcbnew.PCB_VIA:
-    via = pcbnew.PCB_VIA(board)
-    if KICAD_VERSION >= (10, 0, 0):
-        # KiCad's swig interface does not define VIATYPE anymore, probably a bug
-        via.SetViaType(1)
-    else:
-        via.SetViaType(pcbnew.VIATYPE_THROUGH)
-    via.SetDrill(pcbnew.FromMM(0.3))
-    via.SetTopLayer(pcbnew.F_Cu)
-    via.SetBottomLayer(pcbnew.B_Cu)
-    if KICAD_VERSION >= (9, 0, 0):
-        via.SetWidth(pcbnew.F_Cu, pcbnew.FromMM(0.6))
-    else:
-        via.SetWidth(pcbnew.FromMM(0.6))
-    via.SetNetCode(0)
+def _default_via() -> Via:
+    via = Via()
+    via.type = ViaType.VT_THROUGH
+    via.diameter = from_mm(0.6)
+    via.drill_diameter = from_mm(0.3)
     return via
 
 
-def get_netclass(
-    board: pcbnew.BOARD, item: pcbnew.BOARD_CONNECTED_ITEM
-) -> pcbnew.NETCLASS:
-    # workaround, see https://gitlab.com/kicad/code/kicad/-/issues/18609
-    netclass_name = item.GetNetClassName()
-    try:
-        return board.GetNetClasses()[netclass_name]
-    except IndexError:
-        # may happen when via has no net assigned yet or netclass is
-        # equal "Default" (which is not a part of GetNetClasses collection)
-        return board.GetAllNetClasses()["Default"]
+def get_netclass(board: Board, item: Via) -> NetClass:
+    net = item.net
+    if net.name:
+        netclasses: Dict[str, NetClass] = board.get_netclass_for_nets(net)
+        if net.name in netclasses:
+            return netclasses[net.name]
+    # fallback: get Default netclass from project
+    all_netclasses = board.get_project().get_net_classes()
+    for nc in all_netclasses:
+        if nc.name == "Default":
+            return nc
+    return all_netclasses[0]
+
+
+def _copy_via(source: Via) -> Via:
+    # Copy all proto fields (type, padstack, diameter, drill, layers, etc.)
+    copy = Via(proto=source._proto)
+    # ... except `id`: if `source` is already a board item (e.g. the
+    # via passed in by the caller), copying its id would make every
+    # duplicate reference the same board item, so `create_items` collapses
+    # them into one instead of creating distinct new vias.
+    copy._proto.ClearField("id")
+    return copy
 
 
 def add_via_pattern(
-    board: pcbnew.BOARD,
+    board: Board,
     count: int,
     pattern: Union[Pattern, str],
     *,
-    via: Optional[pcbnew.PCB_VIA] = None,
-    start_position: pcbnew.VECTOR2I = ZERO_POSITION,
+    via: Optional[Via] = None,
+    start_position: Vector2 = ZERO_POSITION,
     direction: Direction = Direction.HORIZONTAL,
-    net: Union[str, int] = 0,
+    net: str = "",
     track_width: int = 0,
     extra_space: int = 0,
     select: bool = False,
     inherit_net: bool = False,
-) -> List[pcbnew.PCB_VIA]:
-    vias: List[pcbnew.PCB_VIA] = []
+) -> List[Via]:
+    vias: List[Via] = []
 
-    if pattern not in [Pattern.DIAGONAL, Pattern.PERPENDICULAR, Pattern.STAGGER, Pattern.SQUARE]:
+    if pattern not in [
+        Pattern.DIAGONAL,
+        Pattern.PERPENDICULAR,
+        Pattern.STAGGER,
+        Pattern.SQUARE,
+    ]:
         msg = "Unsupported pattern"
         raise ValueError(msg)
 
@@ -110,51 +117,45 @@ def add_via_pattern(
         raise ValueError(msg)
 
     if not via:
-        _via = _default_via(board)
-        _via.SetStart(start_position)
+        _via = _default_via()
+        _via.position = start_position
         if net:
             if isinstance(net, str) and net != "":
-                nets = board.GetNetsByName()
-                _via.SetNet(nets[net])
-            elif isinstance(net, int) and net != 0:
-                _via.SetNetCode(net)
+                nets = board.get_nets()
+                matching = [n for n in nets if n.name == net]
+                if matching:
+                    _via.net = matching[0]
             else:
-                msg = "The `net` argument must be str or int"
+                msg = "The `net` argument must be str"
                 raise TypeError(msg)
-        board.Add(_via)
+        commit = board.begin_commit()
+        created = board.create_items([_via])
+        board.push_commit(commit, "Add template via")
+        _via = created[0]
     else:
         _via = via
-        if via.GetParent().m_Uuid != board.m_Uuid:
-            msg = "The `via` must be element of `board`"
-            raise ValueError(msg)
 
     vias.append(_via)
 
-    if KICAD_VERSION >= (9, 0, 0):
-        via_width = _via.GetWidth(_via.TopLayer())
-    else:
-        via_width = _via.GetWidth()
-    via_clearance = _via.GetOwnClearance(_via.GetLayer())
+    via_width = _via.diameter
+    # clearance always comes from netclass (no GetOwnClearance in IPC API)
+    via_clearance = 0
 
-    if track_width == 0 or via_clearance == 0:
-        via_netclass = get_netclass(board, _via)
-        if track_width == 0:
-            track_width = via_netclass.GetTrackWidth()
-            logger.debug(
-                "The `track_width` argument not specified, using via's "
-                f"netclass ({via_netclass.GetName()}) value: {track_width}"
-            )
-        if via_clearance == 0:
-            via_clearance = via_netclass.GetClearance()
-            logger.debug(
-                "The `via_clearance` not specified, using via's "
-                f"netclass ({via_netclass.GetName()}) value: {via_clearance}"
-            )
+    via_netclass = get_netclass(board, _via)
+    if track_width == 0:
+        track_width = via_netclass.track_width or 0
+        logger.debug(
+            "The `track_width` argument not specified, using via's "
+            f"netclass ({via_netclass.name}) value: {track_width}"
+        )
+    via_clearance = via_netclass.clearance or 0
+    logger.debug(
+        "Using via's " f"netclass ({via_netclass.name}) clearance: {via_clearance}"
+    )
 
     logger.debug(f"via_width: {via_width}, via_clearance: {via_clearance}")
     logger.debug(f"track_width: {track_width}")
     logger.debug(f"extra_space: {extra_space}")
-    logger.debug(f"netclass: {_via.GetNetClassName()}")
 
     if pattern in [Pattern.STAGGER, Pattern.DIAGONAL] and track_width > via_width:
         logger.debug(
@@ -167,7 +168,6 @@ def add_via_pattern(
     if pattern == Pattern.SQUARE:
         count = side_length * side_length
 
-    move = pcbnew.VECTOR2I(0, 0)
     offset_x = 0
     offset_y = 0
 
@@ -210,43 +210,52 @@ def add_via_pattern(
 
     logger.debug(f"offsets: x: {offset_x} y: {offset_y}")
 
+    move_x = 0
+    move_y = 0
+    new_vias: List[Via] = []
     for i in range(0, count - 1):
-        v = _via.Duplicate()
-        assert v, "Failed to duplicate via item"
+        v = _copy_via(_via)
         if inherit_net:
-            v.SetNetCode(_via.GetNetCode())
+            v.net = _via.net
         else:
-            v.SetNetCode(0)
-        v.SetIsFree(True)
+            v.net = Net()
+
         if pattern == Pattern.PERPENDICULAR:
-            move += pcbnew.VECTOR2I(offset_x, offset_y)
+            move_x += offset_x
+            move_y += offset_y
         elif pattern == Pattern.DIAGONAL:
-            move += pcbnew.VECTOR2I(offset_x, offset_y)
+            move_x += offset_x
+            move_y += offset_y
         elif pattern == Pattern.SQUARE:
-            # i goes from 0 to count-2.
-            # We are generating the (i+2)-th via (1-based index 2..count)
-            # relative to the 1st via (0,0).
-            # Let k = i + 1. k goes from 1 to count-1.
             k = i + 1
             row = k // side_length
             col = k % side_length
-            move = pcbnew.VECTOR2I(col * offset_x, row * offset_y)
+            move_x = col * offset_x
+            move_y = row * offset_y
         else:  # Pattern.STAGGER
             coeffs = zigzag[i % 2]
-            x = int(offset_x * coeffs[0])
-            y = int(offset_y * coeffs[1])
-            move += pcbnew.VECTOR2I(x, y)
-        v.Move(move)
-        if select:
-            v.SetSelected()
-        board.Add(v)
-        vias.append(v)
+            move_x += int(offset_x * coeffs[0])
+            move_y += int(offset_y * coeffs[1])
+
+        v.position = Vector2.from_xy(
+            _via.position.x + move_x,
+            _via.position.y + move_y,
+        )
+        new_vias.append(v)
+
+    commit = board.begin_commit()
+    created = board.create_items(new_vias)
+    board.push_commit(commit, "Add via pattern")
+    if select:
+        board.add_to_selection(created)
+    vias.extend(created)
 
     return vias
 
 
 def rotate_via_pattern(
-    vias: List[pcbnew.PCB_VIA],
+    board: Board,
+    vias: List[Via],
     direction: RotateDirection,
     *,
     reference_index: int = 0,
@@ -259,10 +268,15 @@ def rotate_via_pattern(
         msg = "The `reference_index` argument is out of range"
         raise ValueError(msg)
 
-    reference_position = vias[reference_index].GetPosition()
+    reference_position = vias[reference_index].position
+    angle = Angle.from_degrees(direction * -90)
+    updated: List[Via] = []
     for i, via in enumerate(vias):
         if i == reference_index:
             continue
-        via.Rotate(
-            reference_position, pcbnew.EDA_ANGLE(direction * -90, pcbnew.DEGREES_T)
-        )
+        via.position = via.position.rotate(angle, reference_position)
+        updated.append(via)
+
+    commit = board.begin_commit()
+    board.update_items(updated)
+    board.push_commit(commit, "Rotate via pattern")

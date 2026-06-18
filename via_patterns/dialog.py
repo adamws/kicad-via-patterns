@@ -182,6 +182,48 @@ class LabeledDropdownCtrl(wx.Panel):
         self.SetSizer(sizer)
 
 
+class SelectViaDialog(wx.Dialog):
+    """Prompts the user to select a via and waits for it to happen.
+
+    The IPC API runs the plugin as a standalone process that stays
+    connected to KiCad while the user keeps interacting with the board, so
+    - unlike the old SWIG plugins, which only ran once and returned - this
+    dialog can poll the live selection and close itself automatically once
+    a single via is selected, letting the caller move straight on to the
+    next dialog instead of forcing the user to re-run the plugin.
+    """
+
+    def __init__(
+        self: SelectViaDialog,
+        parent: wx.Frame,
+        check_selection,
+        poll_interval_ms: int = 300,
+    ) -> None:
+        super().__init__(parent, -1, "Via Patterns")
+        self.check_selection = check_selection
+
+        message = wx.StaticText(self, label="Select a via to continue.")
+        buttons = self.CreateButtonSizer(wx.CANCEL)
+
+        box = wx.BoxSizer(wx.VERTICAL)
+        box.Add(message, 0, wx.EXPAND | wx.ALL, 10)
+        box.Add(buttons, 0, wx.EXPAND | wx.ALL, 5)
+        self.SetSizerAndFit(box)
+
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
+        self.timer.Start(poll_interval_ms)
+
+    def on_timer(self, _event: wx.TimerEvent) -> None:
+        if self.check_selection():
+            self.timer.Stop()
+            self.EndModal(wx.ID_OK)
+
+    def Destroy(self) -> bool:
+        self.timer.Stop()
+        return super().Destroy()
+
+
 class MainDialog(wx.Dialog):
     def __init__(
         self: MainDialog, parent: wx.Frame, state: WindowState = WindowState()

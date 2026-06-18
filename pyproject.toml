@@ -1,7 +1,7 @@
 [build-system]
 requires = [
   "hatchling>=1.18",
-  "hatch-kicad",
+  "hatch-kicad @ git+https://github.com/adamws/hatch-kicad.git@develop",
   "hatch-vcs",
 ]
 build-backend = "hatchling.build"
@@ -21,6 +21,9 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)"
 ]
 dynamic = ["version"]
+dependencies = [
+  "kicad-python>=0.7.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/adamws/kicad-via-patterns"
@@ -41,6 +44,7 @@ include = [
 packages = ["via_patterns"]
 
 [tool.hatch.build.targets.kicad-package]
+compatibility = "ipc"
 name = "Via Patterns"
 description = "Add vias using various patterns"
 description_full = [
@@ -49,28 +53,37 @@ description_full = [
 identifier = "com.github.adamws.kicad-via-patterns"
 author = { name = "adamws", web="https://adamws.github.io" }
 status = "{env:PLUGIN_KICAD_STATUS:development}"
-kicad_version = "7.0"
-sources = ["via_patterns"]
+kicad_version = "9.0"
 include = [
   "via_patterns/*.py",
   "via_patterns/icon.png",
+  "requirements.txt",
+  "entrypoint.py",
 ]
 icon = "resources/icon.png"
 download_url = "{env:PLUGIN_KICAD_RELEASE_URL:https://adamws.github.io/kicad-via-patterns/{zip_name}}"
 
+[[tool.hatch.build.targets.kicad-package.actions]]
+identifier = "show-gui"
+name = "Via Patterns"
+description = "Add vias using various patterns"
+entrypoint = "entrypoint.py"
+show_button = true
+icons_light = ["via_patterns/icon.png"]
+
 [tool.hatch.build.targets.kicad-package.hooks.kicad-repository]
+enable-by-default = true
 
 [tool.hatch.envs.test]
 dependencies = [
+  "kicad-python>=0.7.0",
   "Pillow==10.4.0",
   "pytest==8.3.0",
   "pytest-cov==7.0.0",
   "pytest-metadata==3.1.1",
   "pytest-html==4.1.1",
   "PyVirtualDisplay==3.0",
-  "svgpathtools==1.6.1",
 ]
-system-packages = true # for `pcbnew` module
 
 [tool.hatch.envs.test.scripts]
 test = "pytest {args:tests}"
