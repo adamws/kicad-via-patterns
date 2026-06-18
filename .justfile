@@ -1,6 +1,6 @@
 image := "admwscki/kicad-kbplacer-primary"
-in_docker_install := "pip install -r dev-requirements.txt -q"
-in_docker_test := "pytest --no-cov -o=\"log_cli=False\""
+in_docker_install := "pip install --no-cache-dir hatch -q"
+in_docker_test := "hatch run test:test tests/"
 
 test tag:
   docker run --rm -v $(pwd):$(pwd) -w $(pwd) -it {{image}}:{{tag}} \

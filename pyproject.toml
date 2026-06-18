@@ -10,7 +10,7 @@ build-backend = "hatchling.build"
 name = "kicad-via-patterns"
 description = "KiCad plugin for via placement"
 keywords = ["kicad", "via"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -60,6 +60,21 @@ download_url = "{env:PLUGIN_KICAD_RELEASE_URL:https://adamws.github.io/kicad-via
 
 [tool.hatch.build.targets.kicad-package.hooks.kicad-repository]
 
+[tool.hatch.envs.test]
+dependencies = [
+  "Pillow==10.4.0",
+  "pytest==8.3.0",
+  "pytest-cov==7.0.0",
+  "pytest-metadata==3.1.1",
+  "pytest-html==4.1.1",
+  "PyVirtualDisplay==3.0",
+  "svgpathtools==1.6.1",
+]
+system-packages = true # for `pcbnew` module
+
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+
 [tool.hatch.envs.lint]
 detached = true
 dependencies = [
@@ -104,6 +119,7 @@ lint.ignore = [
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
 [tool.coverage.run]
+patch = ["subprocess"]
 relative_files = true
 omit = [
   "via_patterns/_version.py",

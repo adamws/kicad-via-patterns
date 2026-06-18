@@ -12,11 +12,11 @@ jobs:
       - run:
           name: Prepare tests
           command: |
-            pip3 install --no-cache-dir -r dev-requirements.txt
+            pip3 install --no-cache-dir hatch
       - run:
           name: Run tests
           command: |
-            pytest --junitxml=test-results/pytest/results.xml tests/
+            hatch run test:test --junitxml=test-results/pytest/results.xml tests/
       - run:
           name: Move coverage file
           command: |
@@ -83,7 +83,9 @@ jobs:
           command: |
             .\.circleci\scripts\use-kicad-python.ps1
             python -m pip install --upgrade pip
-            pip install --no-cache-dir -r dev-requirements.txt
+            python -m pip install "tomli >= 1.1.0 ; python_version < '3.11'"
+            $deps = python .\.circleci\scripts\get_test_env_deps.py | Where-Object { $_ -ne "" }
+            python -m pip install --no-cache-dir @deps
       - run:
           name: Run tests
           command: |
@@ -128,17 +130,24 @@ jobs:
             elif [ "<<parameters.kicad-version>>" = "10.0.0" ]; then
               revision=5c96043fbafb7f6103bd06f88e6ab3347552e53c
               filepath=Casks/k/kicad.rb
+            elif [ "<<parameters.kicad-version>>" = "10.0.3" ]; then
+              revision=92a6bada7efb4639f3f7bfe82022363564088b02
+              filepath=Casks/k/kicad.rb
             else
               echo "Unsupported KiCad version!"
             fi
             curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/$revision/$filepath > kicad.rb
+            sed -i '' 's/depends_on macos: :big_sur/depends_on macos: ">= :big_sur"/' kicad.rb
             brew install kicad.rb
             rm kicad.rb
       - run:
           name: Install dependencies
           command: |
             source .circleci/scripts/use-kicad-python-macos.sh
-            pip install --no-cache-dir -r dev-requirements.txt
+            python -m pip install --upgrade pip
+            python -m pip install 'tomli >= 1.1.0 ; python_version < "3.11"'
+            python .circleci/scripts/get_test_env_deps.py \
+              | xargs -r python -m pip install --no-cache-dir
       - run:
           name: Run tests
           command: |
@@ -265,12 +274,10 @@ workflows:
           matrix: &linux-matrix
             parameters:
               version:
-                - 7.0.11-focal
                 - 7.0.11-mantic
-                - 8.0.9-focal
                 - 8.0.9-jammy
-                - 9.0.8-noble
-                - 10.0.0-noble
+                - 9.0.9-noble
+                - 10.0.3-noble
       - collect-coverage:
           requires:
             - test-linux
@@ -280,13 +287,13 @@ workflows:
               kicad-version:
                 - 8.0.9
                 - 9.0.8
-                - 10.0.0-1
+                - 10.0.3
       - test-macos:
           matrix:
             parameters:
               kicad-version:
                 - 9.0.8
-                - 10.0.0
+                - 10.0.3
       - create-pcm-package:
           requires: &required-tests
             - test-linux
