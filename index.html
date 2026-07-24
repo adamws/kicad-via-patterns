@@ -1,0 +1,72 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css"
+    />
+  </head>
+  <script src="https://cdn.jsdelivr.net/npm/linkifyjs@4.1.1/dist/linkify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/linkify-html@4.1.1/dist/linkify-html.min.js"></script>
+  <script>
+    window.onload = function () {
+      let packages = document.getElementById("packages");
+      packages.innerHTML = linkifyHtml(packages.innerHTML);
+    };
+  </script>
+  <body>
+    <main class="container">
+      <p>
+        Add <mark>https://adamws.github.io/kicad-via-patterns/repository.json</mark> to KiCad's repository
+        list to use these packages:
+      </p>
+      <pre><code id="packages">{
+    "packages": [
+        {
+            "$schema": "https://go.kicad.org/pcm/schemas/v2",
+            "name": "Via Patterns",
+            "description": "Add vias using various patterns",
+            "description_full": "Add vias using various patterns",
+            "identifier": "com.github.adamws.kicad-via-patterns",
+            "type": "plugin",
+            "author": {
+                "name": "adamws",
+                "contact": {
+                    "web": "https://adamws.github.io"
+                }
+            },
+            "license": "MIT",
+            "resources": {
+                "Homepage": "https://github.com/adamws/kicad-via-patterns",
+                "Bug Tracker": "https://github.com/adamws/kicad-via-patterns/issues"
+            },
+            "versions": [
+                {
+                    "version": "0.5",
+                    "status": "development",
+                    "kicad_version": "9.0",
+                    "runtime": "ipc",
+                    "download_sha256": "126c33f18f198b917c8ab79e6d71b2400601f5b5d5a1a7137e24915f9aa15a2d",
+                    "download_size": 34135,
+                    "install_size": 32555,
+                    "download_url": "https://adamws.github.io/kicad-via-patterns/kicad_via_patterns-0.5.dev6+gd0bcc63b6.zip"
+                }
+            ]
+        }
+    ]
+}</code></pre>
+      <footer>
+        <small
+          >Built with
+          <a href="https://github.com/adamws/hatch-kicad" class="secondary"
+            >hatch-kicad</a
+          ></small
+        >
+      </footer>
+    </main>
+  </body>
+</html>
