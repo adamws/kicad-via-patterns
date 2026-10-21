@@ -139,11 +139,16 @@ jobs:
             elif [ "<<parameters.kicad-version>>" = "10.0.5" ]; then
               revision=c8b9de53a6523a874c3e86263da7940fcef40bd2
               filepath=Casks/k/kicad.rb
+            elif [ "<<parameters.kicad-version>>" = "10.0.7" ]; then
+              revision=69ae45d8fa9ff5394029b288003c85f7bac336d5
+              filepath=Casks/k/kicad.rb
             else
               echo "Unsupported KiCad version!"
             fi
             curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/$revision/$filepath > kicad.rb
             sed -i '' 's/depends_on macos: :big_sur/depends_on macos: ">= :big_sur"/' kicad.rb
+            # newer casks use bare `depends_on :macos` which pinned brew can't parse
+            sed -i '' 's/depends_on :macos$/depends_on macos: ">= :big_sur"/' kicad.rb
             brew install kicad.rb
             rm kicad.rb
       - run:
@@ -281,7 +286,7 @@ workflows:
             parameters:
               version:
                 - 9.0.9-noble
-                - 10.0.5-noble
+                - 10.0.7-noble
       - collect-coverage:
           requires:
             - test-linux
@@ -290,13 +295,13 @@ workflows:
             parameters:
               kicad-version:
                 - 9.0.8
-                - 10.0.5
+                - 10.0.7
       - test-macos:
           matrix:
             parameters:
               kicad-version:
                 - 9.0.8
-                - 10.0.5
+                - 10.0.7
       - create-pcm-package:
           requires: &required-tests
             - test-linux
